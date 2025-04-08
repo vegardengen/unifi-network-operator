@@ -1,0 +1,38 @@
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: unifi-network-operator-system
+spec:
+  ingress:
+    - action: Deny
+  egress:
+    - action: Deny
+---
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: allow-all-in-namespace
+  namespace: unifi-network-operator-system  # Change this to your namespace
+spec:
+  ingress:
+    - action: Allow
+      source:
+        namespaceSelector: kubernetes.io/metadata.name == "unifi-network-operator-system"
+  egress:
+    - action: Allow
+      destination:
+        namespaceSelector: kubernetes.io/metadata.name == "unifi-network-operator-system"
+  selector: all()  # Applies this policy to all pods in the namespace
+---
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: allow-all-temporary
+  namespace: unifi-network-operator-system
+spec:
+  egress:
+    - action: Allow
+  ingress:
+    - action: Allow
+---

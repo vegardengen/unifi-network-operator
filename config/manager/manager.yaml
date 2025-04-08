@@ -58,13 +58,32 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-      - command:
-        - /manager
-        args:
+      - args:
           - --leader-elect
           - --health-probe-bind-address=:8081
         image: controller:latest
         name: manager
+        env:
+          - name: UNIFI_URL
+            valueFrom:
+              secretKeyRef:
+                name: unifi-configuration
+                key: UNIFI_URL
+          - name: UNIFI_SITE
+            valueFrom:
+              secretKeyRef:
+                name: unifi-configuration
+                key: UNIFI_SITE
+          - name: UNIFI_USER
+            valueFrom:
+              secretKeyRef:
+                name: unifi-configuration
+                key: UNIFI_USERNAME
+          - name: UNIFI_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: unifi-configuration
+                key: UNIFI_PASSWORD
         ports: []
         securityContext:
           allowPrivilegeEscalation: false

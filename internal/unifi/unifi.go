@@ -11,7 +11,7 @@ import (
 	"net/http/cookiejar"
 	"os"
 
-	"github.com/vegardengen/go-unifi/unifi"
+	"github.com/ubiquiti-community/go-unifi/unifi"
 )
 
 type UnifiClient struct {
