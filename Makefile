@@ -8,7 +8,7 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-export KO_DOCKER_REPO=registry.engen.priv.no
+export KO_DOCKER_REPO=registry.engen.priv.no/unifi-network-operator-controller
 
 # CONTAINER_TOOL defines the container tool to be used for building images.
 # Be aware that the target commands are only tested with Docker which is
@@ -115,7 +115,7 @@ docker-push: ## Push docker image with the manager.
 
 .PHONY: ko-build
 ko-build: ## Build docker image with the manager.
-	$(CONTAINER_TOOL) publish ./cmd --tags ${IMG}
+	$(CONTAINER_TOOL) publish ./cmd --tags latest --bare
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
