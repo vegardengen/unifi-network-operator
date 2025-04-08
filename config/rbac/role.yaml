@@ -1,0 +1,32 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - unifi.engen.priv.no
+  resources:
+  - networkconfigurations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - unifi.engen.priv.no
+  resources:
+  - networkconfigurations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - unifi.engen.priv.no
+  resources:
+  - networkconfigurations/status
+  verbs:
+  - get
+  - patch
+  - update
