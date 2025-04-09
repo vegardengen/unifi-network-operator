@@ -205,17 +205,16 @@ func main() {
 
 	// Unifi client
 	setupLog.Info("Setting up UniFi client")
-        unifiClient, err := unifi.CreateUnifiClient()
-        if err != nil {
-                setupLog.Error(err, "failed to create UniFi client")
-                os.Exit(1)
-        }
-        setupLog.Info("Finished Setting up UniFi client")
-
+	unifiClient, err := unifi.CreateUnifiClient()
+	if err != nil {
+		setupLog.Error(err, "failed to create UniFi client")
+		os.Exit(1)
+	}
+	setupLog.Info("Finished Setting up UniFi client")
 
 	if err = (&controller.NetworkconfigurationReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
 		UnifiClient: unifiClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Networkconfiguration")
@@ -224,8 +223,8 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	if err = (&controller.FirewallGroupReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
 		UnifiClient: unifiClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "FirewallGroup")
