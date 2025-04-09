@@ -56,11 +56,11 @@ func CreateUnifiClient() (*UnifiClient, error) {
 	}
 
 	if err := client.SetHTTPClient(httpClient); err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to set HTTP client: %s", err))
+		return nil, fmt.Errorf("failed to set HTTP client: %s", err)
 	}
 
 	if err := client.Login(context.Background(), username, password); err != nil {
-		return nil, errors.New(fmt.Sprintf("could not log into UniFi controller: %s", err))
+		return nil, fmt.Errorf("could not log into UniFi controller: %s", err)
 	}
 
 	unifiClient := &UnifiClient{
