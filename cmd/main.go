@@ -223,6 +223,15 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
+	if err = (&controller.FirewallGroupReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		UnifiClient: unifiClient,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "FirewallGroup")
+		os.Exit(1)
+	}
+
 	if metricsCertWatcher != nil {
 		setupLog.Info("Adding metrics certificate watcher to manager")
 		if err := mgr.Add(metricsCertWatcher); err != nil {
