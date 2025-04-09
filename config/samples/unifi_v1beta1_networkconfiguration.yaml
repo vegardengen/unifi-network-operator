@@ -4,6 +4,7 @@ metadata:
   labels:
     app.kubernetes.io/name: unifi-network-operator
     app.kubernetes.io/managed-by: kustomize
-  name: networkconfiguration-sample
+  name: kubernetesweb
 spec:
-  # TODO(user): Add fields here
+  name: kubernetesweb
+  network_name: Kubernetesinternalweb

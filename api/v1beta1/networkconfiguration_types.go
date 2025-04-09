@@ -39,6 +39,8 @@ type NetworkconfigurationSpec struct {
         Ipv6SettingPreference     string        `json:"ipv6_setting_preference,omitempty"`
 	Ipv6Subnet                string        `json:"ipv6_subnet,omitempty"`
         Name                      string        `json:"name"`
+        Networkname               string        `json:"network_name"`
+	NetworkID                 string        `json:"network_id,omitempty"`
         Networkgroup              string        `json:"networkgroup,omitempty"`
         Purpose                   string        `json:"purpose,omitempty"`
         SettingPreference         string        `json:"setting_preference,omitempty"`
@@ -51,7 +53,6 @@ type NetworkconfigurationSpec struct {
 type NetworkconfigurationStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	NetworkId                string         `json:"_id"`
 	Ipv6SubnetStatus         string         `json:"ipv6_subnet_status,omitempty"`
 }
 

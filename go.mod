@@ -7,7 +7,7 @@ godebug default=go1.23
 require (
 	github.com/onsi/ginkgo/v2 v2.22.0
 	github.com/onsi/gomega v1.36.1
-	github.com/vegardengen/go-unifi v0.0.0-20250320212614-5f1c56bd4295
+	github.com/ubiquiti-community/go-unifi v1.33.10
 	k8s.io/apimachinery v0.32.1
 	k8s.io/client-go v0.32.1
 	sigs.k8s.io/controller-runtime v0.20.2
@@ -362,12 +362,12 @@ require (
 	github.com/tomarrell/wrapcheck/v2 v2.8.1 // indirect
 	github.com/tommy-muehle/go-mnd/v2 v2.5.1 // indirect
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80 // indirect
-	github.com/ubiquiti-community/go-unifi v1.33.10 // indirect
 	github.com/ulikunitz/xz v0.5.11 // indirect
 	github.com/ultraware/funlen v0.1.0 // indirect
 	github.com/ultraware/whitespace v0.0.5 // indirect
 	github.com/uudashr/gocognit v1.1.2 // indirect
 	github.com/vbatts/tar-split v0.11.5 // indirect
+	github.com/vegardengen/go-unifi v0.0.0-20250408133614-8e97d8aceca3 // indirect
 	github.com/withfig/autocomplete-tools/integrations/cobra v1.2.1 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/x448/float16 v0.8.4 // indirect

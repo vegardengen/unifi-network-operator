@@ -18,13 +18,14 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
+	unifiv1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
 	"github.com/vegardengen/unifi-network-operator/internal/unifi"
 )
 
@@ -51,21 +52,45 @@ type NetworkconfigurationReconciler struct {
 func (r *NetworkconfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
+	var networkCRDs unifiv1.NetworkconfigurationList
+        if err := r.List(ctx, &networkCRDs); err != nil {
+            return ctrl.Result{}, err
+        }
+	k8sNetworks := make(map[string]*unifiv1.Networkconfiguration)
+	for i := range networkCRDs.Items {
+		log.Info(fmt.Sprintf("Inserting network %s\n", networkCRDs.Items[i].Spec.NetworkID))
+		k8sNetworks[networkCRDs.Items[i].Spec.NetworkID] = &networkCRDs.Items[i]
+	}
+        
+	
+
 	networks, err := r.UnifiClient.Client.ListNetwork(context.Background(), r.UnifiClient.SiteID)
 	if err != nil {
            log.Error(err,"Failed to list Unifi Networks")
            return ctrl.Result{}, err
         }
+
+	seenNetworks := map[string]bool{}
+
 	for _,network := range networks {
-	   log.Info("Network found: %s", network.Name)
-        }
+           networkID := network.ID
+	   seenNetworks[networkID] = true
+	   log.Info(fmt.Sprintf("Searching for  %s\n",networkID))
+
+	   if existing, found := k8sNetworks[networkID]; found {
+             log.Info(fmt.Sprintf("Found network match: %s/%s", existing.Spec.NetworkID,networkID))
+	   } else {
+	     log.Info(fmt.Sprintf("New network: %s with ID %s", network.Name, network.ID))
+	   }
+	}
+
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NetworkconfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&unifiv1beta1.Networkconfiguration{}).
+		For(&unifiv1.Networkconfiguration{}).
 		Named("networkconfiguration").
 		Complete(r)
 }
