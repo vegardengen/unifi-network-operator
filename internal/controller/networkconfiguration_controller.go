@@ -32,7 +32,7 @@ import (
 // NetworkconfigurationReconciler reconciles a Networkconfiguration object
 type NetworkconfigurationReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme      *runtime.Scheme
 	UnifiClient *unifi.UnifiClient
 }
 
@@ -53,35 +53,33 @@ func (r *NetworkconfigurationReconciler) Reconcile(ctx context.Context, req ctrl
 	log := log.FromContext(ctx)
 
 	var networkCRDs unifiv1.NetworkconfigurationList
-        if err := r.List(ctx, &networkCRDs); err != nil {
-            return ctrl.Result{}, err
-        }
+	if err := r.List(ctx, &networkCRDs); err != nil {
+		return ctrl.Result{}, err
+	}
 	k8sNetworks := make(map[string]*unifiv1.Networkconfiguration)
 	for i := range networkCRDs.Items {
 		log.Info(fmt.Sprintf("Inserting network %s\n", networkCRDs.Items[i].Spec.NetworkID))
 		k8sNetworks[networkCRDs.Items[i].Spec.NetworkID] = &networkCRDs.Items[i]
 	}
-        
-	
 
 	networks, err := r.UnifiClient.Client.ListNetwork(context.Background(), r.UnifiClient.SiteID)
 	if err != nil {
-           log.Error(err,"Failed to list Unifi Networks")
-           return ctrl.Result{}, err
-        }
+		log.Error(err, "Failed to list Unifi Networks")
+		return ctrl.Result{}, err
+	}
 
 	seenNetworks := map[string]bool{}
 
-	for _,network := range networks {
-           networkID := network.ID
-	   seenNetworks[networkID] = true
-	   log.Info(fmt.Sprintf("Searching for  %s\n",networkID))
+	for _, network := range networks {
+		networkID := network.ID
+		seenNetworks[networkID] = true
+		log.Info(fmt.Sprintf("Searching for  %s\n", networkID))
 
-	   if existing, found := k8sNetworks[networkID]; found {
-             log.Info(fmt.Sprintf("Found network match: %s/%s", existing.Spec.NetworkID,networkID))
-	   } else {
-	     log.Info(fmt.Sprintf("New network: %s with ID %s", network.Name, network.ID))
-	   }
+		if existing, found := k8sNetworks[networkID]; found {
+			log.Info(fmt.Sprintf("Found network match: %s/%s", existing.Spec.NetworkID, networkID))
+		} else {
+			log.Info(fmt.Sprintf("New network: %s with ID %s", network.Name, network.ID))
+		}
 	}
 
 	return ctrl.Result{}, nil

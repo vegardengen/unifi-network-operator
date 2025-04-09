@@ -29,31 +29,30 @@ type NetworkconfigurationSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of Networkconfiguration. Edit networkconfiguration_types.go to remove/update
-        Enabled                   bool          `json:"enabled,omitempty"`
-        FirewallZoneID            string        `json:"firewall_zone_id,omitempty"`
-        GatewayType               string        `json:"gateway_type,omitempty"`
-        IPSubnet                  string        `json:"ip_subnet,omitempty"`
-        Ipv6InterfaceType         string        `json:"ipv6_interface_type,omitempty"`
-        Ipv6PdAutoPrefixidEnabled bool          `json:"ipv6_pd_auto_prefixid_enabled,omitempty"`
-        Ipv6RaEnabled             bool          `json:"ipv6_ra_enabled,omitempty"`
-        Ipv6SettingPreference     string        `json:"ipv6_setting_preference,omitempty"`
-	Ipv6Subnet                string        `json:"ipv6_subnet,omitempty"`
-        Name                      string        `json:"name"`
-        Networkname               string        `json:"network_name"`
-	NetworkID                 string        `json:"network_id,omitempty"`
-        Networkgroup              string        `json:"networkgroup,omitempty"`
-        Purpose                   string        `json:"purpose,omitempty"`
-        SettingPreference         string        `json:"setting_preference,omitempty"`
-        Vlan                      int64         `json:"vlan,omitempty"`
-        VlanEnabled               bool          `json:"vlan_enabled,omitempty"`
-
+	Enabled                   bool   `json:"enabled,omitempty"`
+	FirewallZoneID            string `json:"firewall_zone_id,omitempty"`
+	GatewayType               string `json:"gateway_type,omitempty"`
+	IPSubnet                  string `json:"ip_subnet,omitempty"`
+	Ipv6InterfaceType         string `json:"ipv6_interface_type,omitempty"`
+	Ipv6PdAutoPrefixidEnabled bool   `json:"ipv6_pd_auto_prefixid_enabled,omitempty"`
+	Ipv6RaEnabled             bool   `json:"ipv6_ra_enabled,omitempty"`
+	Ipv6SettingPreference     string `json:"ipv6_setting_preference,omitempty"`
+	Ipv6Subnet                string `json:"ipv6_subnet,omitempty"`
+	Name                      string `json:"name"`
+	Networkname               string `json:"network_name"`
+	NetworkID                 string `json:"network_id,omitempty"`
+	Networkgroup              string `json:"networkgroup,omitempty"`
+	Purpose                   string `json:"purpose,omitempty"`
+	SettingPreference         string `json:"setting_preference,omitempty"`
+	Vlan                      int64  `json:"vlan,omitempty"`
+	VlanEnabled               bool   `json:"vlan_enabled,omitempty"`
 }
 
 // NetworkconfigurationStatus defines the observed state of Networkconfiguration.
 type NetworkconfigurationStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Ipv6SubnetStatus         string         `json:"ipv6_subnet_status,omitempty"`
+	Ipv6SubnetStatus string `json:"ipv6_subnet_status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
