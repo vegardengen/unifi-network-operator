@@ -29,22 +29,22 @@ type FirewallGroupSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of FirewallGroup. Edit firewallgroup_types.go to remove/update
-	    // Description is a human-readable explanation for the object
-    Name string `json:"name,omitempty"`
-   
-    MatchServicesInAllNamespaces bool `json:"matchServicesInAllNamespaces,omitempty"`
-    // ManualAddresses is a list of manual IPs or CIDRs (IPv4 or IPv6)
-    // +optional
-    ManualAddresses []string `json:"manualAddresses,omitempty"`
+	// Description is a human-readable explanation for the object
+	Name string `json:"name,omitempty"`
 
-    // AutoIncludeSelector defines which services to extract addresses from
-    // +optional
-    AutoIncludeSelector *metav1.LabelSelector `json:"autoIncludeSelector,omitempty"`
+	MatchServicesInAllNamespaces bool `json:"matchServicesInAllNamespaces,omitempty"`
+	// ManualAddresses is a list of manual IPs or CIDRs (IPv4 or IPv6)
+	// +optional
+	ManualAddresses []string `json:"manualAddresses,omitempty"`
 
-    // AddressType can be "ip", "cidr", or "both"
-    // +kubebuilder:validation:Enum=ip;cidr;both
-    // +optional
-    AddressType string `json:"addressType,omitempty"`
+	// AutoIncludeSelector defines which services to extract addresses from
+	// +optional
+	AutoIncludeSelector *metav1.LabelSelector `json:"autoIncludeSelector,omitempty"`
+
+	// AddressType can be "ip", "cidr", or "both"
+	// +kubebuilder:validation:Enum=ip;cidr;both
+	// +optional
+	AddressType string `json:"addressType,omitempty"`
 }
 
 // FirewallGroupStatus defines the observed state of FirewallGroup.
@@ -52,15 +52,15 @@ type FirewallGroupStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-    ResolvedAddresses []string `json:"resolvedAddresses,omitempty"`
+	ResolvedAddresses []string `json:"resolvedAddresses,omitempty"`
 
-    // SyncedWithUnifi indicates whether the addresses are successfully pushed
-    // +optional
-    SyncedWithUnifi bool `json:"syncedWithUnifi,omitempty"`
+	// SyncedWithUnifi indicates whether the addresses are successfully pushed
+	// +optional
+	SyncedWithUnifi bool `json:"syncedWithUnifi,omitempty"`
 
-    // LastSyncTime is the last time the object was synced
-    // +optional
-    LastSyncTime *metav1.Time `json:"lastSyncTime,omitempty"`
+	// LastSyncTime is the last time the object was synced
+	// +optional
+	LastSyncTime *metav1.Time `json:"lastSyncTime,omitempty"`
 }
 
 // +kubebuilder:object:root=true
