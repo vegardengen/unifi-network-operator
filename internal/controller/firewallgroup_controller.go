@@ -27,6 +27,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	goUnifi "github.com/vegardengen/go-unifi/unifi"
 	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
@@ -43,6 +46,7 @@ type FirewallGroupReconciler struct {
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallgroups,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallgroups/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallgroups/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=services,verbs=list;get;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -54,11 +58,11 @@ type FirewallGroupReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.2/pkg/reconcile
 
-func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := log.FromContext(ctx)
 	var nwObj unifiv1beta1.FirewallGroup
 	if err := r.Get(ctx, req.NamespacedName, &nwObj); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 	log.Info(nwObj.Spec.Name)
 	var ipv4, ipv6 []string
@@ -87,18 +91,51 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				}
 			} else {
 				log.Error(err, fmt.Sprintf("Could not parse: %s", addressEntry))
-				return ctrl.Result{}, err
+				return reconcile.Result{}, err
 			}
 		}
 	}
+	var services corev1.ServiceList
+	if nwObj.Spec.MatchServicesInAllNamespaces {
+		if err := r.List(ctx, &services); err != nil {
+			log.Error(err, "unable to list services")
+			return reconcile.Result{}, err
+		}
+	} else {
+		// List Services only in the current namespace
+		if err := r.List(ctx, &services, client.InNamespace(req.Namespace)); err != nil {
+			log.Error(err, "unable to list services")
+			return reconcile.Result{}, err
+		}
+	}
+        for _, service := range services.Items {
+		if val, found := service.Annotations["unifi.engen.priv.no/firewall-group"]; found && val == nwObj.Name && service.Status.LoadBalancer.Ingress != nil {
+			for _, ingress := range service.Status.LoadBalancer.Ingress {
+				if ingress.IP != "" {
+					ip := ingress.IP
+					if isIPv6(ip) {
+						ipv6 = append(ipv6, ip)
+					} else {
+						ipv4= append(ipv4, ip)
+					}
+				}
+			}
+		}
+	}
+	nwObj.Status.ResolvedAddresses = ipv4
+	nwObj.Status.ResolvedAddresses = append(nwObj.Status.ResolvedAddresses, ipv6...)
+	currentTime := metav1.Now()
+	nwObj.Status.LastSyncTime = &currentTime;
+	nwObj.Status.SyncedWithUnifi = true
+
 	err := r.UnifiClient.Reauthenticate()
 	if err != nil {
-		return ctrl.Result{}, err
+		return reconcile.Result{}, err
 	}
 	firewall_groups, err := r.UnifiClient.Client.ListFirewallGroup(context.Background(), r.UnifiClient.SiteID)
 	if err != nil {
 		log.Error(err, "Could not list network objects")
-		return ctrl.Result{}, err
+		return reconcile.Result{}, err
 	}
 	ipv4_name := "k8s-" + nwObj.Spec.Name + "-ipv4"
 	ipv6_name := "k8s-" + nwObj.Spec.Name + "-ipv6"
@@ -119,11 +156,11 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 						_, updateerr := r.UnifiClient.Client.UpdateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
 						if updateerr != nil {
 							log.Error(updateerr, "Could neither delete or rename firewall group")
-							return ctrl.Result{}, updateerr
+							return reconcile.Result{}, updateerr
 						}
 					} else {
 						log.Error(err, "Could not delete firewall group")
-						return ctrl.Result{}, err
+						return reconcile.Result{}, err
 					}
 				}
 				ipv4_done = true
@@ -134,7 +171,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 					_, err := r.UnifiClient.Client.UpdateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
 					if err != nil {
 						log.Error(err, "Could not update firewall group")
-						return ctrl.Result{}, err
+						return reconcile.Result{}, err
 					}
 				}
 				ipv4_done = true
@@ -154,11 +191,11 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 						_, updateerr := r.UnifiClient.Client.UpdateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
 						if updateerr != nil {
 							log.Error(updateerr, "Could neither delete or rename firewall group")
-							return ctrl.Result{}, updateerr
+							return reconcile.Result{}, updateerr
 						}
 					} else {
 						log.Error(err, "Could not delete firewall group")
-						return ctrl.Result{}, err
+						return reconcile.Result{}, err
 					}
 				}
 				ipv6_done = true
@@ -169,7 +206,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 					_, err := r.UnifiClient.Client.UpdateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
 					if err != nil {
 						log.Error(err, "Could not update firewall group")
-						return ctrl.Result{}, err
+						return reconcile.Result{}, err
 					}
 				}
 				ipv6_done = true
@@ -182,7 +219,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			_, err := r.UnifiClient.Client.UpdateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
 			if err != nil {
 				log.Error(err, "Could not update firewall group")
-				return ctrl.Result{}, err
+				return reconcile.Result{}, err
 			}
 			ipv4_done = true
 		}
@@ -193,7 +230,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			_, err := r.UnifiClient.Client.UpdateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
 			if err != nil {
 				log.Error(err, "Could not update firewall group")
-				return ctrl.Result{}, err
+				return reconcile.Result{}, err
 			}
 			ipv6_done = true
 		}
@@ -208,7 +245,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		_, err := r.UnifiClient.Client.CreateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
 		if err != nil {
 			log.Error(err, "Could not create firewall group")
-			return ctrl.Result{}, err
+			return reconcile.Result{}, err
 		}
 	}
 	if len(ipv6) > 0 && !ipv6_done {
@@ -221,13 +258,21 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		_, err := r.UnifiClient.Client.CreateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
 		if err != nil {
 			log.Error(err, "Could not create firewall group")
-			return ctrl.Result{}, err
+			return reconcile.Result{}, err
 		}
 	}
+        if err := r.Status().Update(ctx, &nwObj); err != nil {
+		log.Error(err, "unable to update FirewallGroup status")
+		return reconcile.Result{}, err
+	}
 
-	return ctrl.Result{}, nil
+	log.Info("Successfully updated FirewallGroup status with collected IP addresses")
+
+	return reconcile.Result{}, nil
 }
-
+func isIPv6(ip string) bool {
+	return strings.Contains(ip, ":")
+}
 // SetupWithManager sets up the controller with the Manager.
 func (r *FirewallGroupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
