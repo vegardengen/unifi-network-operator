@@ -9,9 +9,4 @@ spec:
   name: Test
   manualAddresses:
     - 192.168.1.153
-    - 192.168.1.154
-    - 192.168.1.155
-    - 2a01::3
-    - 2a01:0::5
-    - 2a01:2a01::/32
   # TODO(user): Add fields here

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -90,6 +91,10 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			}
 		}
 	}
+	err := r.UnifiClient.Reauthenticate()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 	firewall_groups, err := r.UnifiClient.Client.ListFirewallGroup(context.Background(), r.UnifiClient.SiteID)
 	if err != nil {
 		log.Error(err, "Could not list network objects")
@@ -105,8 +110,21 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				log.Info(fmt.Sprintf("Delete %s", ipv4_name))
 				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewall_group.ID)
 				if err != nil {
-					log.Error(err, "Could not delete firewall group")
-					return ctrl.Result{}, err
+					msg := strings.ToLower(err.Error())
+					log.Info(msg)
+					if strings.Contains(msg, "api.err.objectreferredby") {
+						log.Info("Firewall group is in use. Invoking workaround...!")
+						firewall_group.GroupMembers = []string{"127.0.0.1"}
+						firewall_group.Name = firewall_group.Name + "-deleted"
+						_, updateerr := r.UnifiClient.Client.UpdateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
+						if updateerr != nil {
+							log.Error(updateerr, "Could neither delete or rename firewall group")
+							return ctrl.Result{}, updateerr
+						}
+					} else {
+						log.Error(err, "Could not delete firewall group")
+						return ctrl.Result{}, err
+					}
 				}
 				ipv4_done = true
 			} else {
@@ -127,8 +145,21 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				log.Info(fmt.Sprintf("Delete %s", ipv6_name))
 				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewall_group.ID)
 				if err != nil {
-					log.Error(err, "Could not delete firewall group")
-					return ctrl.Result{}, err
+					msg := strings.ToLower(err.Error())
+					log.Info(msg)
+					if strings.Contains(msg, "api.err.objectreferredby") {
+						log.Info("Firewall group is in use. Invoking workaround...!")
+						firewall_group.GroupMembers = []string{"::1"}
+						firewall_group.Name = firewall_group.Name + "-deleted"
+						_, updateerr := r.UnifiClient.Client.UpdateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
+						if updateerr != nil {
+							log.Error(updateerr, "Could neither delete or rename firewall group")
+							return ctrl.Result{}, updateerr
+						}
+					} else {
+						log.Error(err, "Could not delete firewall group")
+						return ctrl.Result{}, err
+					}
 				}
 				ipv6_done = true
 			} else {
@@ -143,6 +174,28 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				}
 				ipv6_done = true
 			}
+		}
+		if firewall_group.Name == ipv4_name+"-deleted" && len(ipv4) > 0 {
+			firewall_group.Name = ipv4_name
+			firewall_group.GroupMembers = ipv4
+			log.Info(fmt.Sprintf("Creating %s (from previously deleted)", ipv4_name))
+			_, err := r.UnifiClient.Client.UpdateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
+			if err != nil {
+				log.Error(err, "Could not update firewall group")
+				return ctrl.Result{}, err
+			}
+			ipv4_done = true
+		}
+		if firewall_group.Name == ipv6_name+"-deleted" && len(ipv6) > 0 {
+			firewall_group.Name = ipv6_name
+			firewall_group.GroupMembers = ipv6
+			log.Info(fmt.Sprintf("Creating %s (from previously deleted)", ipv6_name))
+			_, err := r.UnifiClient.Client.UpdateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
+			if err != nil {
+				log.Error(err, "Could not update firewall group")
+				return ctrl.Result{}, err
+			}
+			ipv6_done = true
 		}
 	}
 	if len(ipv4) > 0 && !ipv4_done {

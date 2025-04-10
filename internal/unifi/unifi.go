@@ -10,13 +10,19 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"os"
+	"strings"
+	"sync"
 
 	"github.com/vegardengen/go-unifi/unifi"
 )
 
 type UnifiClient struct {
-	Client *unifi.Client
-	SiteID string
+	Client     *unifi.Client
+	SiteID     string
+	mutex      sync.Mutex
+	controller string
+	username   string
+	password   string
 }
 
 func CreateUnifiClient() (*UnifiClient, error) {
@@ -64,9 +70,57 @@ func CreateUnifiClient() (*UnifiClient, error) {
 	}
 
 	unifiClient := &UnifiClient{
-		Client: client,
-		SiteID: siteID,
+		Client:     client,
+		SiteID:     siteID,
+		controller: unifiURL,
+		username:   username,
+		password:   password,
 	}
 
 	return unifiClient, nil
+}
+
+func (s *UnifiClient) WithSession(action func(c *unifi.Client) error) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	err := action(s.Client)
+	if err == nil {
+		return nil
+	}
+
+	if IsSessionExpired(err) {
+		if loginErr := s.Client.Login(context.Background(), s.username, s.password); loginErr != nil {
+			return fmt.Errorf("re-login to Unifi failed: %w", loginErr)
+		}
+
+		return action(s.Client)
+	}
+	return err
+}
+
+func (uClient *UnifiClient) Reauthenticate() error {
+	_, err := uClient.Client.ListSites(context.Background())
+	if err == nil {
+		return nil
+	}
+
+	if IsSessionExpired(err) {
+		if loginErr := uClient.Client.Login(context.Background(), uClient.username, uClient.password); loginErr != nil {
+			return fmt.Errorf("re-login to Unifi failed: %w", loginErr)
+		}
+	}
+	return nil
+}
+
+func IsSessionExpired(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unauthorized") ||
+		strings.Contains(msg, "authentication") ||
+		strings.Contains(msg, "login required") ||
+		strings.Contains(msg, "token")
 }
