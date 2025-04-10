@@ -7,11 +7,11 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"sync"
-	"strings"
 	"net/http"
 	"net/http/cookiejar"
 	"os"
+	"strings"
+	"sync"
 
 	"github.com/vegardengen/go-unifi/unifi"
 )
@@ -97,6 +97,20 @@ func (s *UnifiClient) WithSession(action func(c *unifi.Client) error) error {
 		return action(s.Client)
 	}
 	return err
+}
+
+func (uClient *UnifiClient) Reauthenticate() error {
+	_, err := uClient.Client.ListSites(context.Background())
+	if err == nil {
+		return nil
+	}
+
+	if IsSessionExpired(err) {
+		if loginErr := uClient.Client.Login(context.Background(), uClient.username, uClient.password); loginErr != nil {
+			return fmt.Errorf("re-login to Unifi failed: %w", loginErr)
+		}
+	}
+	return nil
 }
 
 func IsSessionExpired(err error) bool {
