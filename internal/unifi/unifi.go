@@ -15,8 +15,12 @@ import (
 )
 
 type UnifiClient struct {
-	Client *unifi.Client
-	SiteID string
+	Client     *unifi.Client
+	SiteID     string
+	mutex      sync.Mutex
+	controller string
+	username   string
+	password   string
 }
 
 func CreateUnifiClient() (*UnifiClient, error) {
@@ -64,9 +68,42 @@ func CreateUnifiClient() (*UnifiClient, error) {
 	}
 
 	unifiClient := &UnifiClient{
-		Client: client,
-		SiteID: siteID,
+		Client:     client,
+		SiteID:     siteID,
+		controller: unifiURL,
+		username:   username,
+		password:   password,
 	}
 
 	return unifiClient, nil
+}
+
+func (s *Session) WithSession(action func(c *unifi.Client) error) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	err := action(s.client)
+	if err == nil {
+		return nil
+	}
+
+	if IsSessionExpired(err) {
+		if loginErr := s.Client.Login(context.Background(), s.username, s.password); loginErr != nil {
+			return fmt.Errorf("re-login to Unifi failed: %w", loginErr)
+		}
+
+		return action(s.Client)
+	}
+}
+
+func isSessionExpired(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unauthorized") ||
+		strings.Contains(msg, "authentication") ||
+		strings.Contains(msg, "login required") ||
+		strings.Contains(msg, "token")
 }
