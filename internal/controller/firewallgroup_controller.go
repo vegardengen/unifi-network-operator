@@ -277,14 +277,13 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 func isIPv6(ip string) bool {
 	return strings.Contains(ip, ":")
 }
-func (r *FirewallGroupReconciler) mapServiceToFirewallGroups(obj client.Object) []ctrl.Request {
-    ctx := context.Background()
-    svc, ok := obj.(*corev1.Service)
+func (r *FirewallGroupReconciler) mapServiceToFirewallGroups(ctx context.Context, obj client.Object) []reconcile.Request {
+    var requests []reconcile.Request
+    service, ok := obj.(*corev1.Service)
     if !ok {
-        return nil
+        return requests
     }
 
-    var results []ctrl.Request
     var allFirewallGroups unifiv1beta1.FirewallGroupList
 
     if err := r.List(ctx, &allFirewallGroups); err != nil {
@@ -292,11 +291,11 @@ func (r *FirewallGroupReconciler) mapServiceToFirewallGroups(obj client.Object) 
     }
 
     for _, fwg := range allFirewallGroups.Items {
-        if fwg.Spec.MatchServicesInAllNamespaces || fwg.Namespace == svc.Namespace {
+        if fwg.Spec.MatchServicesInAllNamespaces || fwg.Namespace == service.Namespace {
             annotationKey := "unifi.engen.priv.no/firewall-group"
             annotationVal := fwg.Name
-            if val, ok := svc.Annotations[annotationKey]; ok && (annotationVal == "" || val == annotationVal) {
-                results = append(results, ctrl.Request{
+            if val, ok := service.Annotations[annotationKey]; ok && (annotationVal == "" || val == annotationVal) {
+                requests = append(requests, ctrl.Request{
                     NamespacedName: types.NamespacedName{
                         Name:      fwg.Name,
                         Namespace: fwg.Namespace,
@@ -306,17 +305,16 @@ func (r *FirewallGroupReconciler) mapServiceToFirewallGroups(obj client.Object) 
         }
     }
 
-    return results
+    return requests
 }
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *FirewallGroupReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&unifiv1beta1.FirewallGroup{}).
-		Named("firewallgroup").
-		Watches(
-		   &corev1.Service{},
-         	   handler.EnqueueRequestsFromMapFunc(r.mapServiceToFirewallGroups),
-        	).
-		Complete(r)
+    return ctrl.NewControllerManagedBy(mgr).
+        For(&unifiv1beta1.FirewallGroup{}).
+        Named("firewallgroup").
+        Watches(
+            &corev1.Service{},
+            handler.EnqueueRequestsFromMapFunc(r.mapServiceToFirewallGroups),
+        ).
+        Complete(r)
 }
