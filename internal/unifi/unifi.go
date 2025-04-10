@@ -7,6 +7,8 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"sync"
+	"strings"
 	"net/http"
 	"net/http/cookiejar"
 	"os"
@@ -78,11 +80,11 @@ func CreateUnifiClient() (*UnifiClient, error) {
 	return unifiClient, nil
 }
 
-func (s *Session) WithSession(action func(c *unifi.Client) error) error {
+func (s *UnifiClient) WithSession(action func(c *unifi.Client) error) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	err := action(s.client)
+	err := action(s.Client)
 	if err == nil {
 		return nil
 	}
@@ -94,9 +96,10 @@ func (s *Session) WithSession(action func(c *unifi.Client) error) error {
 
 		return action(s.Client)
 	}
+	return err
 }
 
-func isSessionExpired(err error) bool {
+func IsSessionExpired(err error) bool {
 	if err == nil {
 		return false
 	}
