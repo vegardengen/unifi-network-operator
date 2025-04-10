@@ -24,12 +24,16 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+//	"sigs.k8s.io/controller-runtime/pkg/source"
+
 
 	goUnifi "github.com/vegardengen/go-unifi/unifi"
 	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
@@ -273,10 +277,46 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 func isIPv6(ip string) bool {
 	return strings.Contains(ip, ":")
 }
+func (r *FirewallGroupReconciler) mapServiceToFirewallGroups(obj client.Object) []ctrl.Request {
+    ctx := context.Background()
+    svc, ok := obj.(*corev1.Service)
+    if !ok {
+        return nil
+    }
+
+    var results []ctrl.Request
+    var allFirewallGroups unifiv1beta1.FirewallGroupList
+
+    if err := r.List(ctx, &allFirewallGroups); err != nil {
+        return nil
+    }
+
+    for _, fwg := range allFirewallGroups.Items {
+        if fwg.Spec.MatchServicesInAllNamespaces || fwg.Namespace == svc.Namespace {
+            annotationKey := "unifi.engen.priv.no/firewall-group"
+            annotationVal := fwg.Name
+            if val, ok := svc.Annotations[annotationKey]; ok && (annotationVal == "" || val == annotationVal) {
+                results = append(results, ctrl.Request{
+                    NamespacedName: types.NamespacedName{
+                        Name:      fwg.Name,
+                        Namespace: fwg.Namespace,
+                    },
+                })
+            }
+        }
+    }
+
+    return results
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *FirewallGroupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&unifiv1beta1.FirewallGroup{}).
 		Named("firewallgroup").
+		Watches(
+		   &corev1.Service{},
+         	   handler.EnqueueRequestsFromMapFunc(r.mapServiceToFirewallGroups),
+        	).
 		Complete(r)
 }
