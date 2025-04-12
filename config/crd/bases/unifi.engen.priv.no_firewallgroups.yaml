@@ -99,6 +99,10 @@ spec:
                 items:
                   type: string
                 type: array
+              manualPorts:
+                items:
+                  type: string
+                type: array
               matchServicesInAllNamespaces:
                 type: boolean
               name:

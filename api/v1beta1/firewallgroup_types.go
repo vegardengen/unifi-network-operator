@@ -36,6 +36,7 @@ type FirewallGroupSpec struct {
 	// ManualAddresses is a list of manual IPs or CIDRs (IPv4 or IPv6)
 	// +optional
 	ManualAddresses []string `json:"manualAddresses,omitempty"`
+	ManualPorts []string `json:"manualPorts,omitempty"`
 
 	// AutoIncludeSelector defines which services to extract addresses from
 	// +optional
