@@ -25,15 +25,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
-	"github.com/vegardengen/unifi-network-operator/internal/unifi"
 	"github.com/vegardengen/unifi-network-operator/internal/config"
+	"github.com/vegardengen/unifi-network-operator/internal/unifi"
 )
 
 // FirewallRuleReconciler reconciles a FirewallRule object
 type FirewallRuleReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	UnifiClient      *unifi.UnifiClient
+	Scheme       *runtime.Scheme
+	UnifiClient  *unifi.UnifiClient
 	ConfigLoader *config.ConfigLoaderType
 }
 
@@ -57,12 +57,17 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// TODO(user): your logic here
 
 	cfg, err := r.ConfigLoader.GetConfig(ctx, "unifi-operator-config")
-        if err != nil {
-            return ctrl.Result{}, err
-        }
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
-        defaultNs := cfg.Data["defaultNamespace"]
+	defaultNs := cfg.Data["defaultNamespace"]
 	log.Info(defaultNs)
+
+	err = r.UnifiClient.Reauthenticate()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }

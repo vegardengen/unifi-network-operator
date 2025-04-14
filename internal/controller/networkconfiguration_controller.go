@@ -26,15 +26,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	unifiv1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
-	"github.com/vegardengen/unifi-network-operator/internal/unifi"
 	"github.com/vegardengen/unifi-network-operator/internal/config"
+	"github.com/vegardengen/unifi-network-operator/internal/unifi"
 )
 
 // NetworkconfigurationReconciler reconciles a Networkconfiguration object
 type NetworkconfigurationReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	UnifiClient *unifi.UnifiClient
+	Scheme       *runtime.Scheme
+	UnifiClient  *unifi.UnifiClient
 	ConfigLoader *config.ConfigLoaderType
 }
 
@@ -55,17 +55,23 @@ type NetworkconfigurationReconciler struct {
 func (r *NetworkconfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	cfg, err := r.ConfigLoader.GetConfig(ctx, "unifi-operator-config")
-        if err != nil {
-            return ctrl.Result{}, err
-        }
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
-        defaultNs := cfg.Data["defaultNamespace"]
+	defaultNs := cfg.Data["defaultNamespace"]
 	log.Info(defaultNs)
 
 	var networkCRDs unifiv1.NetworkconfigurationList
 	if err := r.List(ctx, &networkCRDs); err != nil {
 		return ctrl.Result{}, err
 	}
+
+	err = r.UnifiClient.Reauthenticate()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	k8sNetworks := make(map[string]*unifiv1.Networkconfiguration)
 	for i := range networkCRDs.Items {
 		log.Info(fmt.Sprintf("Inserting network %s\n", networkCRDs.Items[i].Spec.NetworkID))

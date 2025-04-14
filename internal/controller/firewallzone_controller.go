@@ -19,8 +19,8 @@ package controller
 import (
 	"context"
 	"fmt"
-	"strings"
 	"regexp"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,39 +29,38 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
-	"github.com/vegardengen/unifi-network-operator/internal/unifi"
 	"github.com/vegardengen/unifi-network-operator/internal/config"
+	"github.com/vegardengen/unifi-network-operator/internal/unifi"
 )
 
 // FirewallZoneReconciler reconciles a FirewallZone object
 type FirewallZoneReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	UnifiClient *unifi.UnifiClient
+	Scheme       *runtime.Scheme
+	UnifiClient  *unifi.UnifiClient
 	ConfigLoader *config.ConfigLoaderType
 }
 
 func toKubeName(input string) string {
-    // Lowercase the input
-    name := strings.ToLower(input)
+	// Lowercase the input
+	name := strings.ToLower(input)
 
-    // Replace any non-alphanumeric characters with dashes
-    re := regexp.MustCompile(`[^a-z0-9\-\.]+`)
-    name = re.ReplaceAllString(name, "-")
+	// Replace any non-alphanumeric characters with dashes
+	re := regexp.MustCompile(`[^a-z0-9\-\.]+`)
+	name = re.ReplaceAllString(name, "-")
 
-    // Trim leading and trailing non-alphanumerics
-    name = strings.Trim(name, "-.")
+	// Trim leading and trailing non-alphanumerics
+	name = strings.Trim(name, "-.")
 
-    // Ensure it's not empty and doesn't exceed 253 characters
-    if len(name) == 0 {
-        name = "default"
-    } else if len(name) > 253 {
-        name = name[:253]
-    }
+	// Ensure it's not empty and doesn't exceed 253 characters
+	if len(name) == 0 {
+		name = "default"
+	} else if len(name) > 253 {
+		name = name[:253]
+	}
 
-    return name
+	return name
 }
-
 
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallzones,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallzones/status,verbs=get;update;patch
@@ -81,11 +80,16 @@ func (r *FirewallZoneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	log := log.FromContext(ctx)
 
 	cfg, err := r.ConfigLoader.GetConfig(ctx, "unifi-operator-config")
-        if err != nil {
-            return ctrl.Result{}, err
-        }
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
-        defaultNs := cfg.Data["defaultNamespace"]
+	defaultNs := cfg.Data["defaultNamespace"]
+
+	err = r.UnifiClient.Reauthenticate()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	var fwzCRDs unifiv1beta1.FirewallZoneList
 	_ = r.List(ctx, &fwzCRDs, client.InNamespace(defaultNs))
@@ -118,17 +122,17 @@ func (r *FirewallZoneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	for _, unifizone := range firewall_zones {
 		log.Info(fmt.Sprintf("%+v\n", unifizone))
 		if _, found := firewallZoneNamesCRDs[unifizone.Name]; !found {
-			zoneCRD := &unifiv1beta1.FirewallZone {
-				ObjectMeta : ctrl.ObjectMeta {
-				   Name: toKubeName(unifizone.Name),
-			  	   Namespace: defaultNs,
-			   	},
-				Spec: unifiv1beta1.FirewallZoneSpec {
-					Name : unifizone.Name,
-					ID : unifizone.ID,
+			zoneCRD := &unifiv1beta1.FirewallZone{
+				ObjectMeta: ctrl.ObjectMeta{
+					Name:      toKubeName(unifizone.Name),
+					Namespace: defaultNs,
+				},
+				Spec: unifiv1beta1.FirewallZoneSpec{
+					Name:        unifizone.Name,
+					ID:          unifizone.ID,
 					DefaultZone: unifizone.DefaultZone,
-					ZoneKey : unifizone.ZoneKey,
-					NetworkIDs : unifizone.NetworkIDs,
+					ZoneKey:     unifizone.ZoneKey,
+					NetworkIDs:  unifizone.NetworkIDs,
 				},
 			}
 			err := r.Create(ctx, zoneCRD)
@@ -136,22 +140,22 @@ func (r *FirewallZoneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 			}
 		} else {
-                    for _, zoneCRD := range fwzCRDs.Items {
-			    if zoneCRD.Spec.Name == unifizone.Name {
-				    zoneCRD.Spec = unifiv1beta1.FirewallZoneSpec {
-                                        Name : unifizone.Name,
-                                        ID : unifizone.ID,
-                                        DefaultZone: unifizone.DefaultZone,
-                                        ZoneKey : unifizone.ZoneKey,
-                                        NetworkIDs : unifizone.NetworkIDs,
-                                    }
-	                            err := r.Update(ctx, &zoneCRD)
-                                    if err != nil {
-                                          return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
-                                    }
-		             }
-                   }
-	        }    
+			for _, zoneCRD := range fwzCRDs.Items {
+				if zoneCRD.Spec.Name == unifizone.Name {
+					zoneCRD.Spec = unifiv1beta1.FirewallZoneSpec{
+						Name:        unifizone.Name,
+						ID:          unifizone.ID,
+						DefaultZone: unifizone.DefaultZone,
+						ZoneKey:     unifizone.ZoneKey,
+						NetworkIDs:  unifizone.NetworkIDs,
+					}
+					err := r.Update(ctx, &zoneCRD)
+					if err != nil {
+						return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+					}
+				}
+			}
+		}
 	}
 
 	return ctrl.Result{RequeueAfter: 10 * time.Minute}, nil
