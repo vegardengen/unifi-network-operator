@@ -27,6 +27,7 @@ import (
 
 	unifiv1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
 	"github.com/vegardengen/unifi-network-operator/internal/unifi"
+	"github.com/vegardengen/unifi-network-operator/internal/config"
 )
 
 // NetworkconfigurationReconciler reconciles a Networkconfiguration object
@@ -34,6 +35,7 @@ type NetworkconfigurationReconciler struct {
 	client.Client
 	Scheme      *runtime.Scheme
 	UnifiClient *unifi.UnifiClient
+	OperatorConfig   *config.OperatorConfig
 }
 
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=networkconfigurations,verbs=get;list;watch;create;update;patch;delete
@@ -103,6 +105,14 @@ func (r *NetworkconfigurationReconciler) Reconcile(ctx context.Context, req ctrl
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NetworkconfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	ctx := context.Background()
+	cfgLoader := config.New(mgr.GetClient(), "unifi-operator-config", "unifi-network-operator-system")
+
+	cfg, err := cfgLoader.Load(ctx)
+	if err != nil {
+		return err
+	}
+	r.OperatorConfig = cfg
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&unifiv1.Networkconfiguration{}).
 		Named("networkconfiguration").

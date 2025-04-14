@@ -30,6 +30,7 @@ import (
 
 	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
 	"github.com/vegardengen/unifi-network-operator/internal/unifi"
+	"github.com/vegardengen/unifi-network-operator/internal/config"
 )
 
 // FirewallZoneReconciler reconciles a FirewallZone object
@@ -37,6 +38,7 @@ type FirewallZoneReconciler struct {
 	client.Client
 	Scheme      *runtime.Scheme
 	UnifiClient *unifi.UnifiClient
+	OperatorConfig   *config.OperatorConfig
 }
 
 func toKubeName(input string) string {

@@ -40,6 +40,7 @@ import (
 	goUnifi "github.com/vegardengen/go-unifi/unifi"
 	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
 	"github.com/vegardengen/unifi-network-operator/internal/unifi"
+	"github.com/vegardengen/unifi-network-operator/internal/config"
 )
 
 // FirewallGroupReconciler reconciles a FirewallGroup object
@@ -47,6 +48,7 @@ type FirewallGroupReconciler struct {
 	client.Client
 	Scheme      *runtime.Scheme
 	UnifiClient *unifi.UnifiClient
+	OperatorConfig   *config.OperatorConfig
 }
 
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallgroups,verbs=get;list;watch;create;update;patch;delete

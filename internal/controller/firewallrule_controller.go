@@ -25,12 +25,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
+	"github.com/vegardengen/unifi-network-operator/internal/unifi"
+	"github.com/vegardengen/unifi-network-operator/internal/config"
 )
 
 // FirewallRuleReconciler reconciles a FirewallRule object
 type FirewallRuleReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	UnifiClient      *unifi.UnifiClient
+	OperatorConfig   *config.OperatorConfig
 }
 
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallrules,verbs=get;list;watch;create;update;patch;delete
