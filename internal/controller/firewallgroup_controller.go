@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
-	"regexp"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,15 +39,15 @@ import (
 
 	goUnifi "github.com/vegardengen/go-unifi/unifi"
 	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
-	"github.com/vegardengen/unifi-network-operator/internal/unifi"
 	"github.com/vegardengen/unifi-network-operator/internal/config"
+	"github.com/vegardengen/unifi-network-operator/internal/unifi"
 )
 
 // FirewallGroupReconciler reconciles a FirewallGroup object
 type FirewallGroupReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	UnifiClient *unifi.UnifiClient
+	Scheme       *runtime.Scheme
+	UnifiClient  *unifi.UnifiClient
 	ConfigLoader *config.ConfigLoaderType
 }
 
@@ -69,13 +69,13 @@ type FirewallGroupReconciler struct {
 
 func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := log.FromContext(ctx)
-	
-	cfg, err := r.ConfigLoader.GetConfig(ctx, "unifi-operator-config")
-        if err != nil {
-            return ctrl.Result{}, err
-        }
 
-        defaultNs := cfg.Data["defaultNamespace"]
+	cfg, err := r.ConfigLoader.GetConfig(ctx, "unifi-operator-config")
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	defaultNs := cfg.Data["defaultNamespace"]
 	log.Info(defaultNs)
 
 	var nwObj unifiv1beta1.FirewallGroup
@@ -118,19 +118,19 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 		port_type := "tcp"
 		port := portEntry
 		if match, _ := regexp.MatchString("(?:tcp|udp)\\/?)\\d+", string(portEntry)); match {
-		  fields := strings.Split("/",portEntry)
-		  port_type = fields[0]
-		  port = fields[1]
+			fields := strings.Split("/", portEntry)
+			port_type = fields[0]
+			port = fields[1]
 		}
-		if(port_type == "tcp") {
-		  if !slices.Contains(tcpports, port) {
-			tcpports = append(tcpports, port)
-	          }
+		if port_type == "tcp" {
+			if !slices.Contains(tcpports, port) {
+				tcpports = append(tcpports, port)
+			}
 		}
-		if(port_type == "udp") {
-		  if !slices.Contains(udpports, port) {
-			tcpports = append(udpports, port)
-	          }
+		if port_type == "udp" {
+			if !slices.Contains(udpports, port) {
+				tcpports = append(udpports, port)
+			}
 		}
 	}
 	var services corev1.ServiceList
@@ -162,15 +162,15 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				for _, portSpec := range service.Spec.Ports {
 					log.Info(fmt.Sprintf("portSpec: %+v", portSpec))
 					log.Info(fmt.Sprintf("Port: %s %d", strconv.Itoa(int(portSpec.Port)), portSpec.Port))
-					if(portSpec.Protocol == "TCP") {
-					  if !slices.Contains(tcpports, strconv.Itoa(int(portSpec.Port))) {
-						tcpports = append(tcpports, strconv.Itoa(int(portSpec.Port)))
-					  }
+					if portSpec.Protocol == "TCP" {
+						if !slices.Contains(tcpports, strconv.Itoa(int(portSpec.Port))) {
+							tcpports = append(tcpports, strconv.Itoa(int(portSpec.Port)))
+						}
 					}
-					if(portSpec.Protocol == "UDP") {
-					  if !slices.Contains(udpports, strconv.Itoa(int(portSpec.Port))) {
-						udpports = append(udpports, strconv.Itoa(int(portSpec.Port)))
-					  }
+					if portSpec.Protocol == "UDP" {
+						if !slices.Contains(udpports, strconv.Itoa(int(portSpec.Port))) {
+							udpports = append(udpports, strconv.Itoa(int(portSpec.Port)))
+						}
 					}
 				}
 			}
