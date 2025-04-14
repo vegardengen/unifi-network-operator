@@ -44,7 +44,7 @@ spec:
                 description: Foo is an example field of Networkconfiguration. Edit
                   networkconfiguration_types.go to remove/update
                 type: boolean
-              firewall_zone_id:
+              firewall_zone:
                 type: string
               gateway_type:
                 type: string
@@ -64,8 +64,6 @@ spec:
                 type: string
               network_id:
                 type: string
-              network_name:
-                type: string
               networkgroup:
                 type: string
               purpose:
@@ -79,17 +77,26 @@ spec:
                 type: boolean
             required:
             - name
-            - network_name
             type: object
           status:
             description: NetworkconfigurationStatus defines the observed state of
               Networkconfiguration.
             properties:
-              ipv6_subnet_status:
+              firewall_zone_id:
                 description: |-
                   INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
                   Important: Run "make" to regenerate code after modifying this file
                 type: string
+              ipv6_subnet_status:
+                type: string
+              lastSyncTime:
+                description: LastSyncTime is the last time the object was synced
+                format: date-time
+                type: string
+              syncedWithUnifi:
+                description: SyncedWithUnifi indicates whether the addresses are successfully
+                  pushed
+                type: boolean
             type: object
         type: object
     served: true

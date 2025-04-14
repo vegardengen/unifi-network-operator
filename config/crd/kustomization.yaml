@@ -3,6 +3,8 @@
 # It should be run by config/default
 resources:
 - bases/unifi.engen.priv.no_networkconfigurations.yaml
+- bases/unifi.engen.priv.no_firewallzones.yaml
+- bases/unifi.engen.priv.no_firewallrules.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

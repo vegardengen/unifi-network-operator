@@ -30,7 +30,7 @@ type NetworkconfigurationSpec struct {
 
 	// Foo is an example field of Networkconfiguration. Edit networkconfiguration_types.go to remove/update
 	Enabled                   bool   `json:"enabled,omitempty"`
-	FirewallZoneID            string `json:"firewall_zone_id,omitempty"`
+	FirewallZone              string `json:"firewall_zone,omitempty"`
 	GatewayType               string `json:"gateway_type,omitempty"`
 	IPSubnet                  string `json:"ip_subnet,omitempty"`
 	Ipv6InterfaceType         string `json:"ipv6_interface_type,omitempty"`
@@ -39,7 +39,6 @@ type NetworkconfigurationSpec struct {
 	Ipv6SettingPreference     string `json:"ipv6_setting_preference,omitempty"`
 	Ipv6Subnet                string `json:"ipv6_subnet,omitempty"`
 	Name                      string `json:"name"`
-	Networkname               string `json:"network_name"`
 	NetworkID                 string `json:"network_id,omitempty"`
 	Networkgroup              string `json:"networkgroup,omitempty"`
 	Purpose                   string `json:"purpose,omitempty"`
@@ -52,7 +51,16 @@ type NetworkconfigurationSpec struct {
 type NetworkconfigurationStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Ipv6SubnetStatus string `json:"ipv6_subnet_status,omitempty"`
+	FirewallZoneID            string `json:"firewall_zone_id,omitempty"`
+	Ipv6SubnetStatus          string `json:"ipv6_subnet_status,omitempty"`
+
+	// SyncedWithUnifi indicates whether the addresses are successfully pushed
+        // +optional
+	SyncedWithUnifi           bool `json:"syncedWithUnifi,omitempty"`
+
+	// LastSyncTime is the last time the object was synced
+        // +optional
+        LastSyncTime *metav1.Time `json:"lastSyncTime,omitempty"`
 }
 
 // +kubebuilder:object:root=true

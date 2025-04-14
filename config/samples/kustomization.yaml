@@ -1,4 +1,6 @@
 ## Append samples of your project ##
 resources:
 - unifi_v1beta1_networkconfiguration.yaml
+- unifi_v1beta1_firewallzone.yaml
+- unifi_v1beta1_firewallrule.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

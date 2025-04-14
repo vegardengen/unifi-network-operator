@@ -78,7 +78,23 @@ func (r *NetworkconfigurationReconciler) Reconcile(ctx context.Context, req ctrl
 		if existing, found := k8sNetworks[networkID]; found {
 			log.Info(fmt.Sprintf("Found network match: %s/%s", existing.Spec.NetworkID, networkID))
 		} else {
-			log.Info(fmt.Sprintf("New network: %s with ID %s", network.Name, network.ID))
+			if network.Purpose == "corporate" {
+				log.Info(fmt.Sprintf("New network: %s with ID %s", network.Name, network.ID))
+				var networkObject unifiv1.Networkconfiguration
+				networkObject.Name = network.Name
+				networkObject.Spec.Name = network.Name
+				networkObject.Spec.NetworkID = network.ID
+				networkObject.Spec.IPSubnet = network.IPSubnet
+				networkObject.Spec.Ipv6InterfaceType = network.IPV6InterfaceType
+				networkObject.Spec.Ipv6PdAutoPrefixidEnabled = network.IPV6PDAutoPrefixidEnabled
+				networkObject.Spec.Ipv6RaEnabled = network.IPV6RaEnabled
+				networkObject.Spec.Ipv6SettingPreference = network.IPV6SettingPreference
+				networkObject.Spec.Ipv6Subnet = network.IPV6Subnet
+				networkObject.Spec.Purpose = network.Purpose
+				networkObject.Spec.Networkgroup = network.NetworkGroup
+				networkObject.Spec.SettingPreference = network.SettingPreference
+				networkObject.Spec.VlanEnabled = network.VLANEnabled
+			}
 		}
 	}
 

@@ -220,6 +220,21 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Networkconfiguration")
 		os.Exit(1)
 	}
+	if err = (&controller.FirewallZoneReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		UnifiClient: unifiClient,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "FirewallZone")
+		os.Exit(1)
+	}
+	if err = (&controller.FirewallRuleReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "FirewallRule")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	if err = (&controller.FirewallGroupReconciler{

@@ -16,6 +16,8 @@ rules:
   - unifi.engen.priv.no
   resources:
   - firewallgroups
+  - firewallrules
+  - firewallzones
   - networkconfigurations
   verbs:
   - create
@@ -29,6 +31,8 @@ rules:
   - unifi.engen.priv.no
   resources:
   - firewallgroups/finalizers
+  - firewallrules/finalizers
+  - firewallzones/finalizers
   - networkconfigurations/finalizers
   verbs:
   - update
@@ -36,6 +40,8 @@ rules:
   - unifi.engen.priv.no
   resources:
   - firewallgroups/status
+  - firewallrules/status
+  - firewallzones/status
   - networkconfigurations/status
   verbs:
   - get

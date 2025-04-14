@@ -1,0 +1,62 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: firewallzones.unifi.engen.priv.no
+spec:
+  group: unifi.engen.priv.no
+  names:
+    kind: FirewallZone
+    listKind: FirewallZoneList
+    plural: firewallzones
+    singular: firewallzone
+  scope: Namespaced
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: FirewallZone is the Schema for the firewallzones API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: FirewallZoneSpec defines the desired state of FirewallZone.
+            properties:
+              _id:
+                type: string
+              default_zone:
+                type: boolean
+              name:
+                type: string
+              network_ids:
+                items:
+                  type: string
+                type: array
+              zone_key:
+                type: string
+            type: object
+          status:
+            description: FirewallZoneStatus defines the observed state of FirewallZone.
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -23,17 +23,16 @@ import (
 	"reflect"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-//	"sigs.k8s.io/controller-runtime/pkg/source"
-
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	//	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	goUnifi "github.com/vegardengen/go-unifi/unifi"
 	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
@@ -112,7 +111,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 			return reconcile.Result{}, err
 		}
 	}
-        for _, service := range services.Items {
+	for _, service := range services.Items {
 		if val, found := service.Annotations["unifi.engen.priv.no/firewall-group"]; found && val == nwObj.Name && service.Status.LoadBalancer.Ingress != nil {
 			for _, ingress := range service.Status.LoadBalancer.Ingress {
 				if ingress.IP != "" {
@@ -120,7 +119,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 					if isIPv6(ip) {
 						ipv6 = append(ipv6, ip)
 					} else {
-						ipv4= append(ipv4, ip)
+						ipv4 = append(ipv4, ip)
 					}
 				}
 			}
@@ -129,7 +128,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 	nwObj.Status.ResolvedAddresses = ipv4
 	nwObj.Status.ResolvedAddresses = append(nwObj.Status.ResolvedAddresses, ipv6...)
 	currentTime := metav1.Now()
-	nwObj.Status.LastSyncTime = &currentTime;
+	nwObj.Status.LastSyncTime = &currentTime
 	nwObj.Status.SyncedWithUnifi = true
 
 	err := r.UnifiClient.Reauthenticate()
@@ -265,7 +264,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 			return reconcile.Result{}, err
 		}
 	}
-        if err := r.Status().Update(ctx, &nwObj); err != nil {
+	if err := r.Status().Update(ctx, &nwObj); err != nil {
 		log.Error(err, "unable to update FirewallGroup status")
 		return reconcile.Result{}, err
 	}
@@ -278,43 +277,44 @@ func isIPv6(ip string) bool {
 	return strings.Contains(ip, ":")
 }
 func (r *FirewallGroupReconciler) mapServiceToFirewallGroups(ctx context.Context, obj client.Object) []reconcile.Request {
-    var requests []reconcile.Request
-    service, ok := obj.(*corev1.Service)
-    if !ok {
-        return requests
-    }
+	var requests []reconcile.Request
+	service, ok := obj.(*corev1.Service)
+	if !ok {
+		return requests
+	}
 
-    var allFirewallGroups unifiv1beta1.FirewallGroupList
+	var allFirewallGroups unifiv1beta1.FirewallGroupList
 
-    if err := r.List(ctx, &allFirewallGroups); err != nil {
-        return nil
-    }
+	if err := r.List(ctx, &allFirewallGroups); err != nil {
+		return nil
+	}
 
-    for _, fwg := range allFirewallGroups.Items {
-        if fwg.Spec.MatchServicesInAllNamespaces || fwg.Namespace == service.Namespace {
-            annotationKey := "unifi.engen.priv.no/firewall-group"
-            annotationVal := fwg.Name
-            if val, ok := service.Annotations[annotationKey]; ok && (annotationVal == "" || val == annotationVal) {
-                requests = append(requests, ctrl.Request{
-                    NamespacedName: types.NamespacedName{
-                        Name:      fwg.Name,
-                        Namespace: fwg.Namespace,
-                    },
-                })
-            }
-        }
-    }
+	for _, fwg := range allFirewallGroups.Items {
+		if fwg.Spec.MatchServicesInAllNamespaces || fwg.Namespace == service.Namespace {
+			annotationKey := "unifi.engen.priv.no/firewall-group"
+			annotationVal := fwg.Name
+			if val, ok := service.Annotations[annotationKey]; ok && (annotationVal == "" || val == annotationVal) {
+				requests = append(requests, ctrl.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      fwg.Name,
+						Namespace: fwg.Namespace,
+					},
+				})
+			}
+		}
+	}
 
-    return requests
+	return requests
 }
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *FirewallGroupReconciler) SetupWithManager(mgr ctrl.Manager) error {
-    return ctrl.NewControllerManagedBy(mgr).
-        For(&unifiv1beta1.FirewallGroup{}).
-        Named("firewallgroup").
-        Watches(
-            &corev1.Service{},
-            handler.EnqueueRequestsFromMapFunc(r.mapServiceToFirewallGroups),
-        ).
-        Complete(r)
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&unifiv1beta1.FirewallGroup{}).
+		Named("firewallgroup").
+		Watches(
+			&corev1.Service{},
+			handler.EnqueueRequestsFromMapFunc(r.mapServiceToFirewallGroups),
+		).
+		Complete(r)
 }
