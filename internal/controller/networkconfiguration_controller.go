@@ -27,6 +27,7 @@ import (
 
 	unifiv1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
 	"github.com/vegardengen/unifi-network-operator/internal/unifi"
+	"github.com/vegardengen/unifi-network-operator/internal/config"
 )
 
 // NetworkconfigurationReconciler reconciles a Networkconfiguration object
@@ -34,11 +35,13 @@ type NetworkconfigurationReconciler struct {
 	client.Client
 	Scheme      *runtime.Scheme
 	UnifiClient *unifi.UnifiClient
+	ConfigLoader *config.ConfigLoaderType
 }
 
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=networkconfigurations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=networkconfigurations/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=networkconfigurations/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=list;get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -51,6 +54,13 @@ type NetworkconfigurationReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.2/pkg/reconcile
 func (r *NetworkconfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
+	cfg, err := r.ConfigLoader.GetConfig(ctx, "unifi-operator-config")
+        if err != nil {
+            return ctrl.Result{}, err
+        }
+
+        defaultNs := cfg.Data["defaultNamespace"]
+	log.Info(defaultNs)
 
 	var networkCRDs unifiv1.NetworkconfigurationList
 	if err := r.List(ctx, &networkCRDs); err != nil {
