@@ -38,7 +38,7 @@ type FirewallZoneReconciler struct {
 	client.Client
 	Scheme      *runtime.Scheme
 	UnifiClient *unifi.UnifiClient
-	OperatorConfig   *config.OperatorConfig
+	ConfigLoader *config.ConfigLoaderType
 }
 
 func toKubeName(input string) string {
@@ -66,6 +66,7 @@ func toKubeName(input string) string {
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallzones,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallzones/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallzones/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=list;get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -79,8 +80,15 @@ func toKubeName(input string) string {
 func (r *FirewallZoneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
+	cfg, err := r.ConfigLoader.GetConfig(ctx, "unifi-operator-config")
+        if err != nil {
+            return ctrl.Result{}, err
+        }
+
+        defaultNs := cfg.Data["defaultNamespace"]
+
 	var fwzCRDs unifiv1beta1.FirewallZoneList
-	_ = r.List(ctx, &fwzCRDs, client.InNamespace(r.OperatorConfig.DefaultNamespace))
+	_ = r.List(ctx, &fwzCRDs, client.InNamespace(defaultNs))
 
 	firewall_zones, err := r.UnifiClient.Client.ListFirewallZones(context.Background(), r.UnifiClient.SiteID)
 	if err != nil {
@@ -113,7 +121,7 @@ func (r *FirewallZoneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			zoneCRD := &unifiv1beta1.FirewallZone {
 				ObjectMeta : ctrl.ObjectMeta {
 				   Name: toKubeName(unifizone.Name),
-			  	   Namespace: r.OperatorConfig.DefaultNamespace,
+			  	   Namespace: defaultNs,
 			   	},
 				Spec: unifiv1beta1.FirewallZoneSpec {
 					Name : unifizone.Name,

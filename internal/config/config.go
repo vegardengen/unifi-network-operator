@@ -1,50 +1,45 @@
 package config
 
 import (
-	"context"
-	"fmt"
+    "context"
+    "sync"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+    corev1 "k8s.io/api/core/v1"
+    "k8s.io/apimachinery/pkg/types"
+    "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type OperatorConfig struct {
-	DefaultNamespace string
+type ConfigLoaderType struct {
+    Client client.Client
+
+    mu      sync.Mutex
+    loaded  bool
+    config  *corev1.ConfigMap
+    err     error
 }
 
-type ConfigLoader struct {
-	Client    client.Client
-	Name      string
-	Namespace string
+func NewConfigLoader(k8sClient client.Client) *ConfigLoaderType {
+    return &ConfigLoaderType{Client: k8sClient}
 }
 
-func New(client client.Client, name, namespace string) *ConfigLoader {
-	return &ConfigLoader{
-		Client:    client,
-		Name:      name,
-		Namespace: namespace,
-	}
-}
+func (c *ConfigLoaderType) GetConfig(ctx context.Context, name string) (*corev1.ConfigMap, error) {
+    c.mu.Lock()
+    defer c.mu.Unlock()
 
-func (cl *ConfigLoader) Load(ctx context.Context) (*OperatorConfig, error) {
-	cm := &corev1.ConfigMap{}
-	err := cl.Client.Get(ctx, types.NamespacedName{
-		Name:      cl.Name,
-		Namespace: cl.Namespace,
-	}, cm)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load configmap: %w", err)
-	}
+    if c.loaded {
+        return c.config, c.err
+    }
 
-	cfg := &OperatorConfig{
-		DefaultNamespace: "default", // fallback
-	}
+    cm := &corev1.ConfigMap{}
+    err := c.Client.Get(ctx, types.NamespacedName{
+        Name:      name,
+        Namespace: "unifi-network-operator-system",
+    }, cm)
 
-	if val, ok := cm.Data["defaultNamespace"]; ok && val != "" {
-		cfg.DefaultNamespace = val
-	}
+    c.loaded = true
+    c.config = cm
+    c.err = err
 
-	return cfg, nil
+    return cm, err
 }
 

@@ -48,13 +48,14 @@ type FirewallGroupReconciler struct {
 	client.Client
 	Scheme      *runtime.Scheme
 	UnifiClient *unifi.UnifiClient
-	OperatorConfig   *config.OperatorConfig
+	ConfigLoader *config.ConfigLoaderType
 }
 
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallgroups,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallgroups/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallgroups/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=services,verbs=list;get;watch
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=list;get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -68,6 +69,15 @@ type FirewallGroupReconciler struct {
 
 func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := log.FromContext(ctx)
+	
+	cfg, err := r.ConfigLoader.GetConfig(ctx, "unifi-operator-config")
+        if err != nil {
+            return ctrl.Result{}, err
+        }
+
+        defaultNs := cfg.Data["defaultNamespace"]
+	log.Info(defaultNs)
+
 	var nwObj unifiv1beta1.FirewallGroup
 	if err := r.Get(ctx, req.NamespacedName, &nwObj); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
@@ -172,7 +182,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 	nwObj.Status.LastSyncTime = &currentTime
 	nwObj.Status.SyncedWithUnifi = true
 
-	err := r.UnifiClient.Reauthenticate()
+	err = r.UnifiClient.Reauthenticate()
 	if err != nil {
 		return reconcile.Result{}, err
 	}

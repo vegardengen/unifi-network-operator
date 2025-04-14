@@ -34,12 +34,13 @@ type FirewallRuleReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	UnifiClient      *unifi.UnifiClient
-	OperatorConfig   *config.OperatorConfig
+	ConfigLoader *config.ConfigLoaderType
 }
 
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallrules,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallrules/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallrules/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=list;get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -51,9 +52,17 @@ type FirewallRuleReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.2/pkg/reconcile
 func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	log := log.FromContext(ctx)
 
 	// TODO(user): your logic here
+
+	cfg, err := r.ConfigLoader.GetConfig(ctx, "unifi-operator-config")
+        if err != nil {
+            return ctrl.Result{}, err
+        }
+
+        defaultNs := cfg.Data["defaultNamespace"]
+	log.Info(defaultNs)
 
 	return ctrl.Result{}, nil
 }
