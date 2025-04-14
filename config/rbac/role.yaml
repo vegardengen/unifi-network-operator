@@ -8,12 +8,6 @@ rules:
   - ""
   resources:
   - configmaps
-  verbs:
-  - get
-  - list
-- apiGroups:
-  - ""
-  resources:
   - services
   verbs:
   - get
