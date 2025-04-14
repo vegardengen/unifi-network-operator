@@ -51,16 +51,16 @@ type NetworkconfigurationSpec struct {
 type NetworkconfigurationStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	FirewallZoneID            string `json:"firewall_zone_id,omitempty"`
-	Ipv6SubnetStatus          string `json:"ipv6_subnet_status,omitempty"`
+	FirewallZoneID   string `json:"firewall_zone_id,omitempty"`
+	Ipv6SubnetStatus string `json:"ipv6_subnet_status,omitempty"`
 
 	// SyncedWithUnifi indicates whether the addresses are successfully pushed
-        // +optional
-	SyncedWithUnifi           bool `json:"syncedWithUnifi,omitempty"`
+	// +optional
+	SyncedWithUnifi bool `json:"syncedWithUnifi,omitempty"`
 
 	// LastSyncTime is the last time the object was synced
-        // +optional
-        LastSyncTime *metav1.Time `json:"lastSyncTime,omitempty"`
+	// +optional
+	LastSyncTime *metav1.Time `json:"lastSyncTime,omitempty"`
 }
 
 // +kubebuilder:object:root=true

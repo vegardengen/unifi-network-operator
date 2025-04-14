@@ -38,9 +38,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
+	"github.com/vegardengen/unifi-network-operator/internal/config"
 	"github.com/vegardengen/unifi-network-operator/internal/controller"
 	"github.com/vegardengen/unifi-network-operator/internal/unifi"
-	"github.com/vegardengen/unifi-network-operator/internal/config"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -204,7 +204,7 @@ func main() {
 		os.Exit(1)
 	}
 
-       configLoader := config.NewConfigLoader(mgr.GetClient())
+	configLoader := config.NewConfigLoader(mgr.GetClient())
 
 	// Unifi client
 	setupLog.Info("Setting up UniFi client")
@@ -216,27 +216,27 @@ func main() {
 	setupLog.Info("Finished Setting up UniFi client")
 
 	if err = (&controller.NetworkconfigurationReconciler{
-		Client:      mgr.GetClient(),
-		Scheme:      mgr.GetScheme(),
-		UnifiClient: unifiClient,
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		UnifiClient:  unifiClient,
 		ConfigLoader: configLoader,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Networkconfiguration")
 		os.Exit(1)
 	}
 	if err = (&controller.FirewallZoneReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		UnifiClient: unifiClient,
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		UnifiClient:  unifiClient,
 		ConfigLoader: configLoader,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "FirewallZone")
 		os.Exit(1)
 	}
 	if err = (&controller.FirewallRuleReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		UnifiClient: unifiClient,
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		UnifiClient:  unifiClient,
 		ConfigLoader: configLoader,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "FirewallRule")
@@ -245,9 +245,9 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	if err = (&controller.FirewallGroupReconciler{
-		Client:      mgr.GetClient(),
-		Scheme:      mgr.GetScheme(),
-		UnifiClient: unifiClient,
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		UnifiClient:  unifiClient,
 		ConfigLoader: configLoader,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "FirewallGroup")
