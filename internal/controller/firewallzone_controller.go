@@ -80,7 +80,7 @@ func (r *FirewallZoneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	log := log.FromContext(ctx)
 
 	var fwzCRDs unifiv1beta1.FirewallZoneList
-	_ = r.List(ctx, &fwzCRDs)
+	_ = r.List(ctx, &fwzCRDs, client.InNamespace(r.OperatorConfig.DefaultNamespace))
 
 	firewall_zones, err := r.UnifiClient.Client.ListFirewallZones(context.Background(), r.UnifiClient.SiteID)
 	if err != nil {
@@ -113,7 +113,7 @@ func (r *FirewallZoneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			zoneCRD := &unifiv1beta1.FirewallZone {
 				ObjectMeta : ctrl.ObjectMeta {
 				   Name: toKubeName(unifizone.Name),
-			  	   Namespace: "default",
+			  	   Namespace: r.OperatorConfig.DefaultNamespace,
 			   	},
 				Spec: unifiv1beta1.FirewallZoneSpec {
 					Name : unifizone.Name,
