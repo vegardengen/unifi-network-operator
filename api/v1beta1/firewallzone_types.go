@@ -28,11 +28,11 @@ type FirewallZoneSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Name string `json:"name,omitempty"`
-	ID string `json:"_id,omitempty"`
-	DefaultZone bool `json:"default_zone,omitempty"`
-	ZoneKey string `json:"zone_key,omitempty"`
-	NetworkIDs []string `json:"network_ids,omitempty"`
+	Name        string   `json:"name,omitempty"`
+	ID          string   `json:"_id,omitempty"`
+	DefaultZone bool     `json:"default_zone,omitempty"`
+	ZoneKey     string   `json:"zone_key,omitempty"`
+	NetworkIDs  []string `json:"network_ids,omitempty"`
 }
 
 // FirewallZoneStatus defines the observed state of FirewallZone.
