@@ -9,7 +9,7 @@ godebug default=go1.23
 require (
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
-	github.com/vegardengen/go-unifi v0.0.1-alpha8
+	github.com/vegardengen/go-unifi v0.0.1-alpha9
 	k8s.io/api v0.32.1
 	k8s.io/apimachinery v0.32.1
 	k8s.io/client-go v0.32.1
