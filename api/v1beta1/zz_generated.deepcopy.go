@@ -92,6 +92,11 @@ func (in *FirewallGroupSpec) DeepCopyInto(out *FirewallGroupSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ManualPorts != nil {
+		in, out := &in.ManualPorts, &out.ManualPorts
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.AutoIncludeSelector != nil {
 		in, out := &in.AutoIncludeSelector, &out.AutoIncludeSelector
 		*out = new(v1.LabelSelector)

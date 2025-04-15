@@ -40,9 +40,11 @@ spec:
           spec:
             description: NetworkconfigurationSpec defines the desired state of Networkconfiguration.
             properties:
-              enabled:
+              _id:
                 description: Foo is an example field of Networkconfiguration. Edit
                   networkconfiguration_types.go to remove/update
+                type: string
+              enabled:
                 type: boolean
               firewall_zone:
                 type: string
@@ -61,8 +63,6 @@ spec:
               ipv6_subnet:
                 type: string
               name:
-                type: string
-              network_id:
                 type: string
               networkgroup:
                 type: string
