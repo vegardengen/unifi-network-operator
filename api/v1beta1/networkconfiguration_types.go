@@ -29,6 +29,7 @@ type NetworkconfigurationSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of Networkconfiguration. Edit networkconfiguration_types.go to remove/update
+	ID                        string `json:"_id,omitempty"`
 	Enabled                   bool   `json:"enabled,omitempty"`
 	FirewallZone              string `json:"firewall_zone,omitempty"`
 	GatewayType               string `json:"gateway_type,omitempty"`
@@ -39,7 +40,6 @@ type NetworkconfigurationSpec struct {
 	Ipv6SettingPreference     string `json:"ipv6_setting_preference,omitempty"`
 	Ipv6Subnet                string `json:"ipv6_subnet,omitempty"`
 	Name                      string `json:"name"`
-	NetworkID                 string `json:"network_id,omitempty"`
 	Networkgroup              string `json:"networkgroup,omitempty"`
 	Purpose                   string `json:"purpose,omitempty"`
 	SettingPreference         string `json:"setting_preference,omitempty"`

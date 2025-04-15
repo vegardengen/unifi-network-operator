@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -62,9 +63,21 @@ func (r *NetworkconfigurationReconciler) Reconcile(ctx context.Context, req ctrl
 	defaultNs := cfg.Data["defaultNamespace"]
 	log.Info(defaultNs)
 
-	var networkCRDs unifiv1.NetworkconfigurationList
-	if err := r.List(ctx, &networkCRDs); err != nil {
-		return ctrl.Result{}, err
+	fullSyncNetwork := "core"
+	if cfg.Data["fullSyncNetwork"] != "" {
+		fullSyncNetwork = cfg.Data["fullSyncNetwork"]
+	}
+
+	fullSync := false
+	var networkObj unifiv1.Networkconfiguration
+	if err := r.Get(ctx, req.NamespacedName, &networkObj); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	log.Info(fmt.Sprintf("fullSyncNetwork: %s Network: %s", fullSyncNetwork, networkObj.Name))
+	if networkObj.Name == fullSyncNetwork {
+		fullSync = true
+		log.Info("Going into fullsync mode")
 	}
 
 	err = r.UnifiClient.Reauthenticate()
@@ -72,49 +85,132 @@ func (r *NetworkconfigurationReconciler) Reconcile(ctx context.Context, req ctrl
 		return ctrl.Result{}, err
 	}
 
-	k8sNetworks := make(map[string]*unifiv1.Networkconfiguration)
-	for i := range networkCRDs.Items {
-		log.Info(fmt.Sprintf("Inserting network %s\n", networkCRDs.Items[i].Spec.NetworkID))
-		k8sNetworks[networkCRDs.Items[i].Spec.NetworkID] = &networkCRDs.Items[i]
+	if !fullSync {
+		networks, err := r.UnifiClient.Client.ListNetwork(context.Background(), r.UnifiClient.SiteID)
+		if err != nil {
+			log.Error(err, "Could not list netwrorks")
+			return ctrl.Result{}, err
+		}
+		found := false
+		for _, unifinetwork := range networks {
+			if unifinetwork.Name == networkObj.Spec.Name {
+				found = true
+				networkSpec := unifiv1.NetworkconfigurationSpec{
+					Name:                      unifinetwork.Name,
+					ID:                        unifinetwork.ID,
+					IPSubnet:                  unifinetwork.IPSubnet,
+					Ipv6InterfaceType:         unifinetwork.IPV6InterfaceType,
+					Ipv6PdAutoPrefixidEnabled: unifinetwork.IPV6PDAutoPrefixidEnabled,
+					Ipv6RaEnabled:             unifinetwork.IPV6RaEnabled,
+					Ipv6SettingPreference:     unifinetwork.IPV6SettingPreference,
+					Ipv6Subnet:                unifinetwork.IPV6Subnet,
+					Purpose:                   unifinetwork.Purpose,
+					Networkgroup:              unifinetwork.NetworkGroup,
+					SettingPreference:         unifinetwork.SettingPreference,
+					Vlan:                      int64(unifinetwork.VLAN),
+					VlanEnabled:               unifinetwork.VLANEnabled,
+				}
+				networkObj.Spec = networkSpec
+				err := r.Update(ctx, &networkObj)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+			}
+		}
+		if !found {
+			err := r.Delete(ctx, &networkObj)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
 	}
+	log.Info("Starting fullsync mode")
+	var networkCRDs unifiv1.NetworkconfigurationList
+	_ = r.List(ctx, &networkCRDs, client.InNamespace(defaultNs))
 
 	networks, err := r.UnifiClient.Client.ListNetwork(context.Background(), r.UnifiClient.SiteID)
 	if err != nil {
-		log.Error(err, "Failed to list Unifi Networks")
-		return ctrl.Result{}, err
+		log.Error(err, "Could not list netwrorks")
+		return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+	}
+	log.Info(fmt.Sprintf("Number of resources: %d Number of networks in Unifi: %d", len(networkCRDs.Items), len(networks)))
+
+	var firewallZoneCRDs unifiv1.FirewallZoneList
+	err = r.List(ctx, &firewallZoneCRDs, client.InNamespace(defaultNs))
+	if err != nil {
+		log.Error(err, "Could not list firewall zones")
+		return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 	}
 
-	seenNetworks := map[string]bool{}
+	networkNamesUnifi := make(map[string]struct{})
+	for _, unifinetwork := range networks {
+		networkNamesUnifi[unifinetwork.Name] = struct{}{}
+	}
 
-	for _, network := range networks {
-		networkID := network.ID
-		seenNetworks[networkID] = true
-		log.Info(fmt.Sprintf("Searching for  %s\n", networkID))
-
-		if existing, found := k8sNetworks[networkID]; found {
-			log.Info(fmt.Sprintf("Found network match: %s/%s", existing.Spec.NetworkID, networkID))
-		} else {
-			if network.Purpose == "corporate" {
-				log.Info(fmt.Sprintf("New network: %s with ID %s", network.Name, network.ID))
-				var networkObject unifiv1.Networkconfiguration
-				networkObject.Name = network.Name
-				networkObject.Spec.Name = network.Name
-				networkObject.Spec.NetworkID = network.ID
-				networkObject.Spec.IPSubnet = network.IPSubnet
-				networkObject.Spec.Ipv6InterfaceType = network.IPV6InterfaceType
-				networkObject.Spec.Ipv6PdAutoPrefixidEnabled = network.IPV6PDAutoPrefixidEnabled
-				networkObject.Spec.Ipv6RaEnabled = network.IPV6RaEnabled
-				networkObject.Spec.Ipv6SettingPreference = network.IPV6SettingPreference
-				networkObject.Spec.Ipv6Subnet = network.IPV6Subnet
-				networkObject.Spec.Purpose = network.Purpose
-				networkObject.Spec.Networkgroup = network.NetworkGroup
-				networkObject.Spec.SettingPreference = network.SettingPreference
-				networkObject.Spec.VlanEnabled = network.VLANEnabled
+	// Step 2: Collect zones in fwzCRDs that are NOT in firewall_zones
+	for _, network := range networkCRDs.Items {
+		if _, found := networkNamesUnifi[network.Spec.Name]; !found {
+			err := r.Delete(ctx, &network)
+			if err != nil {
+				return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+			}
+		}
+	}
+	networkNamesCRDs := make(map[string]struct{})
+	for _, networkCRD := range networkCRDs.Items {
+		networkNamesCRDs[networkCRD.Spec.Name] = struct{}{}
+	}
+	for _, unifinetwork := range networks {
+		if unifinetwork.Purpose == "corporate" {
+			networkSpec := unifiv1.NetworkconfigurationSpec{
+				Name:                      unifinetwork.Name,
+				ID:                        unifinetwork.ID,
+				IPSubnet:                  unifinetwork.IPSubnet,
+				Ipv6InterfaceType:         unifinetwork.IPV6InterfaceType,
+				Ipv6PdAutoPrefixidEnabled: unifinetwork.IPV6PDAutoPrefixidEnabled,
+				Ipv6RaEnabled:             unifinetwork.IPV6RaEnabled,
+				Ipv6SettingPreference:     unifinetwork.IPV6SettingPreference,
+				Ipv6Subnet:                unifinetwork.IPV6Subnet,
+				Purpose:                   unifinetwork.Purpose,
+				Networkgroup:              unifinetwork.NetworkGroup,
+				SettingPreference:         unifinetwork.SettingPreference,
+				Vlan:                      int64(unifinetwork.VLAN),
+				VlanEnabled:               unifinetwork.VLANEnabled,
+			}
+			if _, found := networkNamesCRDs[unifinetwork.Name]; !found {
+				firewallZoneNamesCRDs := make(map[string]struct{})
+				firewallZoneIdsCRDs := make(map[string]struct{})
+				for _, firewallZoneCRD := range firewallZoneCRDs.Items {
+					firewallZoneNamesCRDs[firewallZoneCRD.Spec.Name] = struct{}{}
+					firewallZoneIdsCRDs[firewallZoneCRD.Spec.ID] = struct{}{}
+				}
+				networkCRD := &unifiv1.Networkconfiguration{
+					ObjectMeta: ctrl.ObjectMeta{
+						Name:      toKubeName(unifinetwork.Name),
+						Namespace: defaultNs,
+					},
+					Spec: networkSpec,
+				}
+				err = r.Create(ctx, networkCRD)
+				if err != nil {
+					return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+				}
+			} else {
+				for _, networkCRD := range networkCRDs.Items {
+					if networkCRD.Spec.Name == unifinetwork.Name {
+						networkCRD.Spec = networkSpec
+					}
+					err := r.Update(ctx, &networkCRD)
+					if err != nil {
+						return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+					}
+				}
 			}
 		}
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: 10 * time.Minute}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
