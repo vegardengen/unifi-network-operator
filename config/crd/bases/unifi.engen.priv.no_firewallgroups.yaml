@@ -37,15 +37,15 @@ spec:
           metadata:
             type: object
           spec:
-            description: FirewallGroupSpec defines the desired state of FirewallGroup.
             properties:
-              addressType:
-                description: AddressType can be "ip", "cidr", or "both"
-                enum:
-                - ip
-                - cidr
-                - both
-                type: string
+              auto_created_from:
+                description: FirewallRuleSpec defines the desired state of FirewallRule.
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                type: object
               autoIncludeSelector:
                 description: AutoIncludeSelector defines which services to extract
                   addresses from

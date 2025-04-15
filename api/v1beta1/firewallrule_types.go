@@ -24,12 +24,30 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // FirewallRuleSpec defines the desired state of FirewallRule.
+// type ServiceSpec struct {
+// 	Namespace string `json:"namespace,omitempty"`
+// 	Name      string `json:"name,omitempty"`
+// }
+
+// type FirewallSource struct {
+//	Zones    []string `json:"from_zones,omitempty"`
+//	Networks []string `json:"from_networks,omitempty"`
+//}
+
+//type FirewallDestination struct {
+//	FirewallGroups []string      `json:"firewall_group,omitempty"`
+//	Services       []ServiceSpec `json:"service,omitempty"`
+//}
+
 type FirewallRuleSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of FirewallRule. Edit firewallrule_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	Name                               string              `json:"name"`
+	Source                             FirewallSource      `json:"source"`
+	Destination                        FirewallDestination `json:"destination"`
+	MatchFirewallGroupsInAllNamespaces bool                `json:"match_firewall_groups_in_all_namespaces,omitempty"`
+	MatchServicesInAllNamespaces       bool                `json:"match_services_in_all_namespaces,omitempty"`
 }
 
 // FirewallRuleStatus defines the observed state of FirewallRule.

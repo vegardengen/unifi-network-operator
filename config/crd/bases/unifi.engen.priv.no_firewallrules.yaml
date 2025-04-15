@@ -37,12 +37,45 @@ spec:
           metadata:
             type: object
           spec:
-            description: FirewallRuleSpec defines the desired state of FirewallRule.
             properties:
-              foo:
-                description: Foo is an example field of FirewallRule. Edit firewallrule_types.go
-                  to remove/update
+              destination:
+                properties:
+                  firewall_group:
+                    items:
+                      type: string
+                    type: array
+                  service:
+                    items:
+                      description: FirewallRuleSpec defines the desired state of FirewallRule.
+                      properties:
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              match_firewall_groups_in_all_namespaces:
+                type: boolean
+              match_services_in_all_namespaces:
+                type: boolean
+              name:
                 type: string
+              source:
+                properties:
+                  from_networks:
+                    items:
+                      type: string
+                    type: array
+                  from_zones:
+                    items:
+                      type: string
+                    type: array
+                type: object
+            required:
+            - destination
+            - name
+            - source
             type: object
           status:
             description: FirewallRuleStatus defines the observed state of FirewallRule.

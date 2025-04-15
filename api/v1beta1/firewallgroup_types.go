@@ -24,6 +24,7 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // FirewallGroupSpec defines the desired state of FirewallGroup.
+
 type FirewallGroupSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
@@ -38,14 +39,11 @@ type FirewallGroupSpec struct {
 	ManualAddresses []string `json:"manualAddresses,omitempty"`
 	ManualPorts     []string `json:"manualPorts,omitempty"`
 
+	AutoCreatedFrom ServiceSpec `json:"auto_created_from,omitempty"`
+
 	// AutoIncludeSelector defines which services to extract addresses from
 	// +optional
 	AutoIncludeSelector *metav1.LabelSelector `json:"autoIncludeSelector,omitempty"`
-
-	// AddressType can be "ip", "cidr", or "both"
-	// +kubebuilder:validation:Enum=ip;cidr;both
-	// +optional
-	AddressType string `json:"addressType,omitempty"`
 }
 
 // FirewallGroupStatus defines the observed state of FirewallGroup.
