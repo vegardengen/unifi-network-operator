@@ -91,6 +91,61 @@ func (r *FirewallZoneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
+	fullSyncZone := "gateway"
+	if cfg.Data["fullSyncZone"] != "" {
+		fullSyncZone = cfg.Data["fullSyncZone"]
+	}
+
+	fullSync := false
+	var zoneObj unifiv1beta1.FirewallZone
+	if err := r.Get(ctx, req.NamespacedName, &zoneObj); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	log.Info(fmt.Sprintf("fullSyncZone: %s Zone: %s", fullSyncZone, zoneObj.Name))
+	if zoneObj.Name == fullSyncZone {
+		fullSync = true
+		log.Info("Going into fullsync mode")
+	}
+
+	err = r.UnifiClient.Reauthenticate()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if !fullSync {
+		firewallzones, err := r.UnifiClient.Client.ListFirewallZones(context.Background(), r.UnifiClient.SiteID)
+		if err != nil {
+			log.Error(err, "Could not list firewall zones")
+			return ctrl.Result{}, err
+		}
+		found := false
+		for _, unifizone := range firewallzones {
+			if unifizone.Name == zoneObj.Spec.Name {
+				found = true
+				zoneSpec := unifiv1beta1.FirewallZoneSpec{
+					Name:        unifizone.Name,
+					ID:          unifizone.ID,
+					DefaultZone: unifizone.DefaultZone,
+					NetworkIDs:  unifizone.NetworkIDs,
+				}
+				zoneObj.Spec = zoneSpec
+				err := r.Update(ctx, &zoneObj)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+			}
+		}
+		if !found {
+			err := r.Delete(ctx, &zoneObj)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+	log.Info("Starting fullsync mode")
+
 	var fwzCRDs unifiv1beta1.FirewallZoneList
 	_ = r.List(ctx, &fwzCRDs, client.InNamespace(defaultNs))
 
