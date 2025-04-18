@@ -37,15 +37,90 @@ spec:
           metadata:
             type: object
           spec:
-            description: FirewallRuleSpec defines the desired state of FirewallRule.
             properties:
-              foo:
-                description: Foo is an example field of FirewallRule. Edit firewallrule_types.go
-                  to remove/update
+              destination:
+                properties:
+                  firewall_groups:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      type: object
+                    type: array
+                  services:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              match_firewall_groups_in_all_namespaces:
+                type: boolean
+              match_services_in_all_namespaces:
+                type: boolean
+              name:
                 type: string
+              source:
+                properties:
+                  from_networks:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      type: object
+                    type: array
+                  from_zones:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+            required:
+            - destination
+            - name
+            - source
             type: object
           status:
             description: FirewallRuleStatus defines the observed state of FirewallRule.
+            properties:
+              resources_managed:
+                properties:
+                  firewall_groups_managed:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      type: object
+                    type: array
+                  firewall_rules_managed:
+                    items:
+                      properties:
+                        from:
+                          type: string
+                        rule_id:
+                          type: string
+                        to:
+                          type: string
+                      required:
+                      - from
+                      - rule_id
+                      - to
+                      type: object
+                    type: array
+                type: object
             type: object
         type: object
     served: true

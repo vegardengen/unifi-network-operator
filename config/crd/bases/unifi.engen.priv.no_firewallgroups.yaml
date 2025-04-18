@@ -37,15 +37,14 @@ spec:
           metadata:
             type: object
           spec:
-            description: FirewallGroupSpec defines the desired state of FirewallGroup.
             properties:
-              addressType:
-                description: AddressType can be "ip", "cidr", or "both"
-                enum:
-                - ip
-                - cidr
-                - both
-                type: string
+              auto_created_from:
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                type: object
               autoIncludeSelector:
                 description: AutoIncludeSelector defines which services to extract
                   addresses from
@@ -93,6 +92,20 @@ spec:
                     type: object
                 type: object
                 x-kubernetes-map-type: atomic
+              id:
+                description: |-
+                  Foo is an example field of FirewallGroup. Edit firewallgroup_types.go to remove/update
+                  Description is a human-readable explanation for the object
+                type: string
+              manual_services:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  type: object
+                type: array
               manualAddresses:
                 description: ManualAddresses is a list of manual IPs or CIDRs (IPv4
                   or IPv6)
@@ -106,9 +119,6 @@ spec:
               matchServicesInAllNamespaces:
                 type: boolean
               name:
-                description: |-
-                  Foo is an example field of FirewallGroup. Edit firewallgroup_types.go to remove/update
-                  Description is a human-readable explanation for the object
                 type: string
             type: object
           status:
@@ -118,10 +128,57 @@ spec:
                 description: LastSyncTime is the last time the object was synced
                 format: date-time
                 type: string
-              resolvedAddresses:
+              resolvedIPV4Addresses:
                 items:
                   type: string
                 type: array
+              resolvedIPV6Addresses:
+                items:
+                  type: string
+                type: array
+              resolvedTCPorts:
+                items:
+                  type: string
+                type: array
+              resolvedUDPorts:
+                items:
+                  type: string
+                type: array
+              resources_managed:
+                properties:
+                  ipv4_object:
+                    description: FirewallRuleSpec defines the desired state of FirewallRule.
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                    type: object
+                  ipv6_object:
+                    description: FirewallRuleSpec defines the desired state of FirewallRule.
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                    type: object
+                  tcp_ports_object:
+                    description: FirewallRuleSpec defines the desired state of FirewallRule.
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                    type: object
+                  udp_ports_object:
+                    description: FirewallRuleSpec defines the desired state of FirewallRule.
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                    type: object
+                type: object
               syncedWithUnifi:
                 description: SyncedWithUnifi indicates whether the addresses are successfully
                   pushed

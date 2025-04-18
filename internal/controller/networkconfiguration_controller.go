@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -178,6 +179,10 @@ func (r *NetworkconfigurationReconciler) Reconcile(ctx context.Context, req ctrl
 				Vlan:                      int64(unifinetwork.VLAN),
 				VlanEnabled:               unifinetwork.VLANEnabled,
 			}
+			networkStatus := unifiv1.NetworkconfigurationStatus{
+				FirewallZoneID: unifinetwork.FirewallZoneID,
+			}
+			log.Info(fmt.Sprintf("Network status %s: %+v", networkSpec.Name, networkStatus))
 			if _, found := networkNamesCRDs[unifinetwork.Name]; !found {
 				firewallZoneNamesCRDs := make(map[string]struct{})
 				firewallZoneIdsCRDs := make(map[string]struct{})
@@ -190,10 +195,16 @@ func (r *NetworkconfigurationReconciler) Reconcile(ctx context.Context, req ctrl
 						Name:      toKubeName(unifinetwork.Name),
 						Namespace: defaultNs,
 					},
-					Spec: networkSpec,
+					Spec:   networkSpec,
+					Status: networkStatus,
 				}
 				err = r.Create(ctx, networkCRD)
 				if err != nil {
+					return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+				}
+				err = r.Get(ctx, types.NamespacedName{Name: networkCRD.Name, Namespace: networkCRD.Namespace}, networkCRD)
+				networkCRD.Status = networkStatus
+				if err = r.Status().Update(ctx, networkCRD); err != nil {
 					return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 				}
 			} else {
@@ -203,6 +214,9 @@ func (r *NetworkconfigurationReconciler) Reconcile(ctx context.Context, req ctrl
 					}
 					err := r.Update(ctx, &networkCRD)
 					if err != nil {
+						return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+					}
+					if err = r.Status().Update(ctx, &networkCRD); err != nil {
 						return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 					}
 				}

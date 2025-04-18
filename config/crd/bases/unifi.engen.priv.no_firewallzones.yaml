@@ -54,6 +54,20 @@ spec:
             type: object
           status:
             description: FirewallZoneStatus defines the observed state of FirewallZone.
+            properties:
+              resources_managed:
+                properties:
+                  firewall_zones_managed:
+                    items:
+                      description: FirewallRuleSpec defines the desired state of FirewallRule.
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                      type: object
+                    type: array
+                type: object
             type: object
         type: object
     served: true

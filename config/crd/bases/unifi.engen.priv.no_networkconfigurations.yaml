@@ -93,6 +93,19 @@ spec:
                 description: LastSyncTime is the last time the object was synced
                 format: date-time
                 type: string
+              resources_managed:
+                properties:
+                  networks_managed:
+                    items:
+                      description: FirewallRuleSpec defines the desired state of FirewallRule.
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                      type: object
+                    type: array
+                type: object
               syncedWithUnifi:
                 description: SyncedWithUnifi indicates whether the addresses are successfully
                   pushed

@@ -24,28 +24,28 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // FirewallGroupSpec defines the desired state of FirewallGroup.
+
 type FirewallGroupSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of FirewallGroup. Edit firewallgroup_types.go to remove/update
 	// Description is a human-readable explanation for the object
+	ID   string `json:"id,omitempty"`
 	Name string `json:"name,omitempty"`
 
 	MatchServicesInAllNamespaces bool `json:"matchServicesInAllNamespaces,omitempty"`
 	// ManualAddresses is a list of manual IPs or CIDRs (IPv4 or IPv6)
 	// +optional
-	ManualAddresses []string `json:"manualAddresses,omitempty"`
-	ManualPorts     []string `json:"manualPorts,omitempty"`
+	ManualAddresses []string       `json:"manualAddresses,omitempty"`
+	ManualPorts     []string       `json:"manualPorts,omitempty"`
+	ManualServices  []ServiceEntry `json:"manual_services,omitempty"`
+
+	AutoCreatedFrom FirewallRuleEntry `json:"auto_created_from,omitempty"`
 
 	// AutoIncludeSelector defines which services to extract addresses from
 	// +optional
 	AutoIncludeSelector *metav1.LabelSelector `json:"autoIncludeSelector,omitempty"`
-
-	// AddressType can be "ip", "cidr", or "both"
-	// +kubebuilder:validation:Enum=ip;cidr;both
-	// +optional
-	AddressType string `json:"addressType,omitempty"`
 }
 
 // FirewallGroupStatus defines the observed state of FirewallGroup.
@@ -53,15 +53,27 @@ type FirewallGroupStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ResolvedAddresses []string `json:"resolvedAddresses,omitempty"`
+	ResolvedIPV4Addresses []string `json:"resolvedIPV4Addresses,omitempty"`
+	ResolvedIPV6Addresses []string `json:"resolvedIPV6Addresses,omitempty"`
+	ResolvedTCPPorts      []string `json:"resolvedTCPorts,omitempty"`
+	ResolvedUDPPorts      []string `json:"resolvedUDPorts,omitempty"`
 
 	// SyncedWithUnifi indicates whether the addresses are successfully pushed
 	// +optional
 	SyncedWithUnifi bool `json:"syncedWithUnifi,omitempty"`
 
+	ResourcesManaged *FirewallGroupResourcesManaged `json:"resources_managed,omitempty"`
+
 	// LastSyncTime is the last time the object was synced
 	// +optional
 	LastSyncTime *metav1.Time `json:"lastSyncTime,omitempty"`
+}
+
+type FirewallGroupResourcesManaged struct {
+	IPV4Object     *NamedUnifiResource `json:"ipv4_object,omitempty"`
+	IPV6Object     *NamedUnifiResource `json:"ipv6_object,omitempty"`
+	TCPPortsObject *NamedUnifiResource `json:"tcp_ports_object,omitempty"`
+	UDPPortsObject *NamedUnifiResource `json:"udp_ports_object,omitempty"`
 }
 
 // +kubebuilder:object:root=true

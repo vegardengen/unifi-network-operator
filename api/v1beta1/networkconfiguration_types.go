@@ -58,9 +58,14 @@ type NetworkconfigurationStatus struct {
 	// +optional
 	SyncedWithUnifi bool `json:"syncedWithUnifi,omitempty"`
 
+	ResourcesManaged *NetworkconfigurationResourcesManaged `json:"resources_managed,omitempty"`
 	// LastSyncTime is the last time the object was synced
 	// +optional
 	LastSyncTime *metav1.Time `json:"lastSyncTime,omitempty"`
+}
+
+type NetworkconfigurationResourcesManaged struct {
+	UnifiNetworks []NamedUnifiResource `json:"networks_managed,omitempty"`
 }
 
 // +kubebuilder:object:root=true
