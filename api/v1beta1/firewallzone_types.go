@@ -39,6 +39,12 @@ type FirewallZoneSpec struct {
 type FirewallZoneStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	ResourcesManaged *FirewallZoneResourcesManaged `json:"resources_managed,omitempty"`
+}
+
+type FirewallZoneResourcesManaged struct {
+	UnifiFirewallZones []NamedUnifiResource `json:"firewall_zones_managed,omitempty"`
 }
 
 // +kubebuilder:object:root=true

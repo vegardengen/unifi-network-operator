@@ -146,8 +146,18 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 			return reconcile.Result{}, err
 		}
 	}
+	serviceNamespaceNames := make(map[string]struct{})
+	for _, serviceEntry := range nwObj.Spec.ManualServices {
+		serviceNamespaceNames[serviceEntry.Namespace+"/"+serviceEntry.Name] = struct{}{}
+	}
+	log.Info(fmt.Sprintf("Manually specified: %+v", serviceNamespaceNames))
 	for _, service := range services.Items {
-		if val, found := service.Annotations["unifi.engen.priv.no/firewall-group"]; found && val == nwObj.Name && service.Status.LoadBalancer.Ingress != nil {
+		_, manually_specified := serviceNamespaceNames[service.Namespace+"/"+service.Name]
+		val, found := service.Annotations["unifi.engen.priv.no/firewall-group"]
+		log.Info(fmt.Sprintf("%s %sv %+v %+v", service.Name, val, manually_specified, found))
+
+		// if val, found := service.Annotations["unifi.engen.priv.no/firewall-group"]; (manually_specified || (found && val == nwObj.Name)) && service.Status.LoadBalancer.Ingress != nil {
+		if (manually_specified || (found && val == nwObj.Name)) && service.Status.LoadBalancer.Ingress != nil {
 			for _, ingress := range service.Status.LoadBalancer.Ingress {
 				if ingress.IP != "" {
 					ip := ingress.IP
@@ -176,12 +186,33 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 			}
 		}
 	}
-	nwObj.Status.ResolvedAddresses = ipv4
-	nwObj.Status.ResolvedAddresses = append(nwObj.Status.ResolvedAddresses, ipv6...)
+	nwObj.Status.ResolvedIPV4Addresses = ipv4
+	nwObj.Status.ResolvedIPV6Addresses = ipv6
+	nwObj.Status.ResolvedTCPPorts = tcpports
+	nwObj.Status.ResolvedUDPPorts = udpports
 	currentTime := metav1.Now()
 	nwObj.Status.LastSyncTime = &currentTime
 	nwObj.Status.SyncedWithUnifi = true
-
+	if nwObj.Status.ResourcesManaged == nil {
+		nwObj.Status.ResourcesManaged = &unifiv1beta1.FirewallGroupResourcesManaged{
+			IPV4Object: &unifiv1beta1.NamedUnifiResource{
+				ID:   "",
+				Name: "",
+			},
+			IPV6Object: &unifiv1beta1.NamedUnifiResource{
+				ID:   "",
+				Name: "",
+			},
+			TCPPortsObject: &unifiv1beta1.NamedUnifiResource{
+				ID:   "",
+				Name: "",
+			},
+			UDPPortsObject: &unifiv1beta1.NamedUnifiResource{
+				ID:   "",
+				Name: "",
+			},
+		}
+	}
 	err = r.UnifiClient.Reauthenticate()
 	if err != nil {
 		return reconcile.Result{}, err
@@ -216,10 +247,14 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 							log.Error(updateerr, "Could neither delete or rename firewall group")
 							return reconcile.Result{}, updateerr
 						}
+						nwObj.Status.ResourcesManaged.IPV4Object.Name = firewall_group.Name
 					} else {
 						log.Error(err, "Could not delete firewall group")
 						return reconcile.Result{}, err
 					}
+				} else {
+					nwObj.Status.ResourcesManaged.IPV4Object.Name = ""
+					nwObj.Status.ResourcesManaged.IPV4Object.ID = ""
 				}
 				ipv4_done = true
 			} else {
@@ -251,10 +286,14 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 							log.Error(updateerr, "Could neither delete or rename firewall group")
 							return reconcile.Result{}, updateerr
 						}
+						nwObj.Status.ResourcesManaged.IPV6Object.Name = firewall_group.Name
 					} else {
 						log.Error(err, "Could not delete firewall group")
 						return reconcile.Result{}, err
 					}
+				} else {
+					nwObj.Status.ResourcesManaged.IPV6Object.Name = ""
+					nwObj.Status.ResourcesManaged.IPV6Object.ID = ""
 				}
 				ipv6_done = true
 			} else {
@@ -279,17 +318,21 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 					log.Info(msg)
 					if strings.Contains(msg, "api.err.objectreferredby") {
 						log.Info("Firewall group is in use. Invoking workaround...!")
-						firewall_group.GroupMembers = []string{"127.0.0.1"}
+						firewall_group.GroupMembers = []string{"0"}
 						firewall_group.Name = firewall_group.Name + "-deleted"
 						_, updateerr := r.UnifiClient.Client.UpdateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
 						if updateerr != nil {
 							log.Error(updateerr, "Could neither delete or rename firewall group")
 							return reconcile.Result{}, updateerr
 						}
+						nwObj.Status.ResourcesManaged.TCPPortsObject.Name = firewall_group.Name
 					} else {
 						log.Error(err, "Could not delete firewall group")
 						return reconcile.Result{}, err
 					}
+				} else {
+					nwObj.Status.ResourcesManaged.TCPPortsObject.Name = ""
+					nwObj.Status.ResourcesManaged.TCPPortsObject.ID = ""
 				}
 				tcpports_done = true
 			} else {
@@ -321,10 +364,14 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 							log.Error(updateerr, "Could neither delete or rename firewall group")
 							return reconcile.Result{}, updateerr
 						}
+						nwObj.Status.ResourcesManaged.UDPPortsObject.Name = firewall_group.Name
 					} else {
 						log.Error(err, "Could not delete firewall group")
 						return reconcile.Result{}, err
 					}
+				} else {
+					nwObj.Status.ResourcesManaged.UDPPortsObject.Name = ""
+					nwObj.Status.ResourcesManaged.UDPPortsObject.ID = ""
 				}
 				udpports_done = true
 			} else {
@@ -349,6 +396,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				log.Error(err, "Could not update firewall group")
 				return reconcile.Result{}, err
 			}
+			nwObj.Status.ResourcesManaged.IPV4Object.Name = firewall_group.Name
 			ipv4_done = true
 		}
 		if firewall_group.Name == ipv6_name+"-deleted" && len(ipv6) > 0 {
@@ -360,6 +408,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				log.Error(err, "Could not update firewall group")
 				return reconcile.Result{}, err
 			}
+			nwObj.Status.ResourcesManaged.IPV4Object.Name = firewall_group.Name
 			ipv6_done = true
 		}
 		if firewall_group.Name == tcpports_name+"-deleted" && len(tcpports) > 0 {
@@ -371,6 +420,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				log.Error(err, "Could not update firewall group")
 				return reconcile.Result{}, err
 			}
+			nwObj.Status.ResourcesManaged.TCPPortsObject.Name = firewall_group.Name
 			tcpports_done = true
 		}
 		if firewall_group.Name == udpports_name+"-deleted" && len(udpports) > 0 {
@@ -382,6 +432,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				log.Error(err, "Could not update firewall group")
 				return reconcile.Result{}, err
 			}
+			nwObj.Status.ResourcesManaged.UDPPortsObject.Name = firewall_group.Name
 			udpports_done = true
 		}
 	}
@@ -392,11 +443,19 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 		firewall_group.SiteID = r.UnifiClient.SiteID
 		firewall_group.GroupMembers = ipv4
 		firewall_group.GroupType = "address-group"
-		_, err := r.UnifiClient.Client.CreateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
+		firewall_group_result, err := r.UnifiClient.Client.CreateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
+		log.Info(fmt.Sprintf("%+v", firewall_group_result))
 		if err != nil {
 			log.Error(err, "Could not create firewall group")
 			return reconcile.Result{}, err
+		} else {
+			firewall_group = *firewall_group_result
 		}
+
+		log.Info(fmt.Sprintf("ID and name: %s %s", firewall_group.ID, firewall_group.Name))
+		log.Info(fmt.Sprintf("%+v", firewall_group))
+		nwObj.Status.ResourcesManaged.IPV4Object.ID = firewall_group.ID
+		nwObj.Status.ResourcesManaged.IPV4Object.Name = firewall_group.Name
 	}
 	if len(ipv6) > 0 && !ipv6_done {
 		log.Info(fmt.Sprintf("Creating %s", ipv6_name))
@@ -405,11 +464,17 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 		firewall_group.SiteID = r.UnifiClient.SiteID
 		firewall_group.GroupMembers = ipv6
 		firewall_group.GroupType = "ipv6-address-group"
-		_, err := r.UnifiClient.Client.CreateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
+		firewall_group_result, err := r.UnifiClient.Client.CreateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
+		log.Info(fmt.Sprintf("%+v", firewall_group_result))
 		if err != nil {
 			log.Error(err, "Could not create firewall group")
 			return reconcile.Result{}, err
+		} else {
+			firewall_group = *firewall_group_result
 		}
+		nwObj.Status.ResourcesManaged.IPV6Object.ID = firewall_group.ID
+		nwObj.Status.ResourcesManaged.IPV6Object.Name = firewall_group.Name
+
 	}
 	if len(tcpports) > 0 && !tcpports_done {
 		log.Info(fmt.Sprintf("Creating %s", tcpports_name))
@@ -419,11 +484,15 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 		firewall_group.GroupMembers = tcpports
 		firewall_group.GroupType = "port-group"
 		log.Info(fmt.Sprintf("Trying to apply: %+v", firewall_group))
-		_, err := r.UnifiClient.Client.CreateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
+		firewall_group_result, err := r.UnifiClient.Client.CreateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
 		if err != nil {
 			log.Error(err, "Could not create firewall group")
 			return reconcile.Result{}, err
+		} else {
+			firewall_group = *firewall_group_result
 		}
+		nwObj.Status.ResourcesManaged.TCPPortsObject.ID = firewall_group.ID
+		nwObj.Status.ResourcesManaged.TCPPortsObject.Name = firewall_group.Name
 	}
 	if len(udpports) > 0 && !udpports_done {
 		log.Info(fmt.Sprintf("Creating %s", udpports_name))
@@ -433,12 +502,18 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 		firewall_group.GroupMembers = udpports
 		firewall_group.GroupType = "port-group"
 		log.Info(fmt.Sprintf("Trying to apply: %+v", firewall_group))
-		_, err := r.UnifiClient.Client.CreateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
+		firewall_group_result, err := r.UnifiClient.Client.CreateFirewallGroup(context.Background(), r.UnifiClient.SiteID, &firewall_group)
+		log.Info(fmt.Sprintf("%+v", firewall_group_result))
 		if err != nil {
 			log.Error(err, "Could not create firewall group")
 			return reconcile.Result{}, err
+		} else {
+			firewall_group = *firewall_group_result
 		}
+		nwObj.Status.ResourcesManaged.UDPPortsObject.ID = firewall_group.ID
+		nwObj.Status.ResourcesManaged.UDPPortsObject.Name = firewall_group.Name
 	}
+	log.Info(fmt.Sprintf("Updating status for %s: %+v", nwObj.Name, nwObj.Status))
 	if err := r.Status().Update(ctx, &nwObj); err != nil {
 		log.Error(err, "unable to update FirewallGroup status")
 		return reconcile.Result{}, err

@@ -40,13 +40,17 @@ spec:
             properties:
               destination:
                 properties:
-                  firewall_group:
+                  firewall_groups:
                     items:
-                      type: string
+                      properties:
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      type: object
                     type: array
-                  service:
+                  services:
                     items:
-                      description: FirewallRuleSpec defines the desired state of FirewallRule.
                       properties:
                         name:
                           type: string
@@ -65,11 +69,21 @@ spec:
                 properties:
                   from_networks:
                     items:
-                      type: string
+                      properties:
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      type: object
                     type: array
                   from_zones:
                     items:
-                      type: string
+                      properties:
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      type: object
                     type: array
                 type: object
             required:
@@ -79,6 +93,34 @@ spec:
             type: object
           status:
             description: FirewallRuleStatus defines the observed state of FirewallRule.
+            properties:
+              resources_managed:
+                properties:
+                  firewall_groups_managed:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      type: object
+                    type: array
+                  firewall_rules_managed:
+                    items:
+                      properties:
+                        from:
+                          type: string
+                        rule_id:
+                          type: string
+                        to:
+                          type: string
+                      required:
+                      - from
+                      - rule_id
+                      - to
+                      type: object
+                    type: array
+                type: object
             type: object
         type: object
     served: true

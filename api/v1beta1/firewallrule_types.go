@@ -54,6 +54,19 @@ type FirewallRuleSpec struct {
 type FirewallRuleStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	ResourcesManaged *FirewallRuleResourcesManaged `json:"resources_managed,omitempty"`
+}
+
+type FirewallRuleResourcesManaged struct {
+	UnifiFirewallRules []UnifiFirewallRuleEntry `json:"firewall_rules_managed,omitempty"`
+	FirewallGroups     []FirewallGroupEntry     `json:"firewall_groups_managed,omitempty"`
+}
+
+type UnifiFirewallRuleEntry struct {
+	From   string `json:"from"`
+	To     string `json:"to"`
+	RuleID string `json:"rule_id"`
 }
 
 // +kubebuilder:object:root=true
