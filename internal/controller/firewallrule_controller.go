@@ -258,9 +258,10 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				log.Error(err, fmt.Sprintf("Failed to create %s", createdFirewallGroupCRD.Name))
 				return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 			} else {
+				time.Sleep(10 * time.Second)
 				_ = r.Get(ctx, types.NamespacedName{Name: createdFirewallGroupCRD.Name, Namespace: createdFirewallGroupCRD.Namespace}, &firewallGroupCRD)
 			}
-			log.Info("Adding %+v", firewallGroupCRD)
+			log.Info(fmt.Sprintf("Adding %+v", firewallGroupCRD))
 			myFirewallGroups = append(myFirewallGroups, firewallGroupCRD)
 			found := false
 			for _, managedFirewallGroup := range firewallRule.Status.ResourcesManaged.FirewallGroups {
