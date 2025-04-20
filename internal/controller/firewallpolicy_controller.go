@@ -210,10 +210,12 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, err
 		}
 	}
+	// Create an index of already managed firewall policy entries, with source and destination as the key and placement in status field array as value. If no managed firewall policy
+	// entries, this is a new policy and we will create an empty index and set empty lists in the status field of the firewallPolicy resource.
 
 	firewallpolicyindex := make(map[string]int)
 
-	nextIndex := 0
+	nextFirewallPolicyIndex := 0
 	if firewallPolicy.Status.ResourcesManaged == nil {
 		firewallGroupsManaged := []unifiv1beta1.FirewallGroupEntry{}
 		unifiFirewallPolicies := []unifiv1beta1.UnifiFirewallPolicyEntry{}
@@ -224,9 +226,10 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	} else {
 		for index, firewallPolicyEntry := range firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies {
 			firewallpolicyindex[firewallPolicyEntry.From+"/"+firewallPolicyEntry.To] = index
-			nextIndex = nextIndex + 1
+			nextFirewallPolicyIndex = nextFirewallPolicyIndex + 1
 		}
 	}
+
 	err = r.UnifiClient.Reauthenticate()
 	if err != nil {
 		return ctrl.Result{}, err
@@ -240,6 +243,9 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		log.Error(err, "Could not list firewall zones")
 		return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 	}
+
+	// Create an index of zones, with namespace/name as key and placement in zoneCRDs as value. This enables getting the zone properties from specified namespace/name in
+	// the policy entries. If Namespace is not specified, default will be taken from the configmap.
 
 	zoneCRDNames := make(map[string]int)
 
@@ -261,6 +267,9 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 	}
 
+	// Create an index of networks, with namespace/name as key and placement in networkCRDs as value. This enables getting the network properties from specified namespace/name in
+	// the policy entries.
+
 	networkCRDNames := make(map[string]int)
 
 	for i, networkCRD := range networkCRDs.Items {
@@ -273,6 +282,9 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	destination_services := make(map[string]struct{})
 	destination_groups := make(map[string]struct{})
+
+	// Run through the list of specified firewall groups destinations and service desitnations and create an index with namespace/name as key.
+	// This will be used when running through all firewall groups and servics known, to see if a rule should be added.
 
 	for _, dest_group := range firewallPolicy.Spec.Destination.FirewallGroups {
 		namespace := defaultNs
@@ -288,48 +300,64 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 		destination_services[namespace+"/"+dest_service.Name] = struct{}{}
 	}
-	log.Info(fmt.Sprintf("%+v", destination_services))
+
 	var firewallGroupCRDs unifiv1beta1.FirewallGroupList
 	var myFirewallGroups []unifiv1beta1.FirewallGroup
+
 	if err = r.List(ctx, &firewallGroupCRDs); err != nil {
 		log.Error(err, "Failed to list firewall groups")
 		return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 	}
 
+	// Run through all firewall groups. Add them to the myFirewallGroups list if they either have an annotations or is specified in the resource.
+
 	for _, firewallGroup := range firewallGroupCRDs.Items {
-		if val, found := firewallGroup.Annotations["unifi.engen.priv.no/firewall-policy"]; found && val == firewallPolicy.Name {
+		if val, found := firewallGroup.Annotations["unifi.engen.priv.no/firewall-policy"]; found && ((strings.Contains(val, "/") && val == firewallPolicy.Namespace+"/"+firewallPolicy.Name) || (val == firewallPolicy.Name && firewallPolicy.Namespace == defaultNs)) {
 			myFirewallGroups = append(myFirewallGroups, firewallGroup)
 		} else if _, found := destination_groups[firewallGroup.Namespace+"/"+firewallGroup.Name]; found {
 			myFirewallGroups = append(myFirewallGroups, firewallGroup)
 		}
 	}
+
+	// Create an index with namespace/name as value,
+
 	myFirewallGroupNames := make(map[string]struct{})
 	for _, firewallGroup := range myFirewallGroups {
-		myFirewallGroupNames[firewallGroup.Name] = struct{}{}
+		myFirewallGroupNames[firewallGroup.Namespace+"/"+firewallGroup.Name] = struct{}{}
 	}
+
 	var serviceCRDs corev1.ServiceList
 	var myServices []corev1.Service
 	if err = r.List(ctx, &serviceCRDs); err != nil {
 		log.Error(err, "Failed to list services")
 		return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 	}
+
+	// Run through all services. Check if they are part of the manually specified services or have an annotation, and add it to the myServices list if found
 	for _, service := range serviceCRDs.Items {
 		skipService := false
 		if val, found := service.Annotations["unifi.engen.priv.no/firewall-group"]; found {
 			if _, found := myFirewallGroupNames[val]; found {
+
 				skipService = true
 			}
 		}
-		if val, found := service.Annotations["unifi.engen.priv.no/firewall-policy"]; found && val == firewallPolicy.Name && !skipService {
+		if val, found := service.Annotations["unifi.engen.priv.no/firewall-policy"]; found && ((strings.Contains(val, "/") && val == firewallPolicy.Namespace+"/"+firewallPolicy.Name) || (val == firewallPolicy.Name && firewallPolicy.Namespace == defaultNs)) && !skipService {
 			myServices = append(myServices, service)
 		} else if _, found := destination_services[service.Namespace+"/"+service.Name]; found && !skipService {
 			myServices = append(myServices, service)
 		}
 	}
 
+	// Run through all services we should manage. Create a firewallgroup object for it, if it's not already created.
+	// Add it to the list of managed unifiresources if it's created. Make sure to not add it twice.
+
 	for _, service := range myServices {
 		log.Info(fmt.Sprintf("Should handle service %s", service.Name))
 		var firewallGroupCRD unifiv1beta1.FirewallGroup
+
+		// Check if firewallgroup already exists. Add it to myFirewallGroups if it exists, create it if not.
+
 		if err := r.Get(ctx, types.NamespacedName{
 			Name:      toKubeName("k8s-auto" + "_" + service.Namespace + "/" + service.Name),
 			Namespace: firewallPolicy.Namespace,
@@ -357,22 +385,27 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					MatchServicesInAllNamespaces: true,
 				},
 			}
-			log.Info(fmt.Sprintf("%+v", createdFirewallGroupCRD))
 			if err := r.Create(ctx, createdFirewallGroupCRD); err != nil {
 				log.Error(err, fmt.Sprintf("Failed to create %s", createdFirewallGroupCRD.Name))
 				return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 			} else {
+				// Give it time to be fully created. It doesn't need to be handled and expanded at this point, but it should be before using it later.
 				time.Sleep(10 * time.Second)
 				_ = r.Get(ctx, types.NamespacedName{Name: createdFirewallGroupCRD.Name, Namespace: createdFirewallGroupCRD.Namespace}, &firewallGroupCRD)
 			}
 			log.Info(fmt.Sprintf("Adding %+v", firewallGroupCRD))
 			myFirewallGroups = append(myFirewallGroups, firewallGroupCRD)
+
+			// Run through list of already managed Unifi firewallgroups to check if it's already on the list, to  avoid having it in list twice.
+
 			found := false
 			for _, managedFirewallGroup := range firewallPolicy.Status.ResourcesManaged.FirewallGroups {
 				if managedFirewallGroup.Name == firewallGroupCRD.Name && managedFirewallGroup.Namespace == firewallGroupCRD.Namespace {
 					found = true
 				}
 			}
+
+			// Add it to resource status field.
 			if !found {
 				firewallPolicy.Status.ResourcesManaged.FirewallGroups = append(firewallPolicy.Status.ResourcesManaged.FirewallGroups, unifiv1beta1.FirewallGroupEntry{Name: firewallGroupCRD.Name, Namespace: firewallGroupCRD.Namespace})
 				if err := r.Status().Update(ctx, &firewallPolicy); err != nil {
@@ -382,30 +415,46 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 		}
 	}
+
+	// Finished listing destinations. Starting to handle source specifications.
+	// Source can be either zones or networks managed by/known to the operator. Specified by namespace and name. Use default from configmap if namespace is not specified.
+
 	unifi_firewall_policies, err := r.UnifiClient.Client.ListFirewallPolicy(context.Background(), r.UnifiClient.SiteID)
 	if err != nil {
 		log.Error(err, "Could not list firewall policies")
 		return ctrl.Result{}, err
 	}
+
+	// Create an index of Unifi firewall policy names.
 	unifiFirewallpolicyNames := make(map[string]struct{})
 	for _, unifi_firewall_policy := range unifi_firewall_policies {
 		unifiFirewallpolicyNames[unifi_firewall_policy.Name] = struct{}{}
 	}
 	log.Info(fmt.Sprintf("Number of firewall policies: %d", len(unifi_firewall_policies)))
 
+	// Run through specified source zones and check if we should handle them.
 	for _, zoneEntry := range firewallPolicy.Spec.Source.FirewallZones {
 		namespace := defaultNs
 		if len(zoneEntry.Namespace) > 0 {
 			namespace = zoneEntry.Namespace
 		}
-		if i, found := zoneCRDNames[namespace+"/"+zoneEntry.Name]; found {
-			log.Info(fmt.Sprintf("Creating firewallpolicies for %s", zoneCRDs.Items[i].Name))
+
+		if zoneIndex, found := zoneCRDNames[namespace+"/"+zoneEntry.Name]; found {
+			// Should handle, so we create firewall policies.
+
+			log.Info(fmt.Sprintf("Creating firewallpolicies for %s", zoneCRDs.Items[zoneIndex].Name))
+
+			// Run through destination firewall groups and enumerate and create polices if they don't already exist.
+
 			for _, firewallGroup := range myFirewallGroups {
 				found := false
-				index, found := firewallpolicyindex["zone:"+zoneCRDs.Items[i].Name+"/"+firewallGroup.Name]
+
+				index, found := firewallpolicyindex["zone:"+zoneCRDs.Items[zoneIndex].Name+"/"+firewallGroup.Name]
+
+				// Not found? We add an empty entry in status field.
 				if !found {
 					firewallPolicyEntry := unifiv1beta1.UnifiFirewallPolicyEntry{
-						From:      "zone:" + zoneCRDs.Items[i].Name,
+						From:      "zone:" + zoneCRDs.Items[zoneIndex].Name,
 						To:        firewallGroup.Name,
 						TcpIpv4ID: "",
 						UdpIpv4ID: "",
@@ -413,23 +462,25 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 						UdpIpv6ID: "",
 					}
 					firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies = append(firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies, firewallPolicyEntry)
-					index = nextIndex
-					nextIndex = nextIndex + 1
+					index = nextFirewallPolicyIndex
+					nextFirewallPolicyIndex = nextFirewallPolicyIndex + 1
 				}
+
+				// Create policies for all permutations of Ipversion and protocol.
 
 				if len(firewallGroup.Status.ResolvedIPV4Addresses) > 0 {
 					if len(firewallGroup.Status.ResolvedTCPPorts) > 0 {
-						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + zoneCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv4-tcp"
+						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "zone:" + zoneCRDs.Items[zoneIndex].Name + "-" + firewallGroup.Name + "-ipv4-tcp"
 						if _, found := unifiFirewallpolicyNames[policyname]; !found {
-							log.Info(fmt.Sprintf("Creating ipv4 tcp firewallpolicy for %s to %s: %s", zoneCRDs.Items[i].Name, firewallGroup.Name, policyname))
+							log.Info(fmt.Sprintf("Creating ipv4 tcp firewallpolicy for %s to %s: %s", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name, policyname))
 							unifiFirewallPolicy := fillDefaultPolicy()
 							unifiFirewallPolicy.Name = policyname
 							unifiFirewallPolicy.Source.PortMatchingType = "ANY"
-							unifiFirewallPolicy.Source.ZoneID = zoneCRDs.Items[i].Spec.ID
+							unifiFirewallPolicy.Source.ZoneID = zoneCRDs.Items[zoneIndex].Spec.ID
 							unifiFirewallPolicy.Source.MatchingTarget = "ANY"
 							unifiFirewallPolicy.Protocol = "tcp"
 							unifiFirewallPolicy.IPVersion = "IPV4"
-							unifiFirewallPolicy.Description = fmt.Sprintf("Allow tcp IPV4 from %s to %s", zoneCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallPolicy.Description = fmt.Sprintf("Allow tcp IPV4 from %s to %s", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name)
 							unifiFirewallPolicy.Destination.MatchingTargetType = "OBJECT"
 							unifiFirewallPolicy.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV4Object.ID
 							unifiFirewallPolicy.Destination.MatchingTarget = "IP"
@@ -437,7 +488,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							unifiFirewallPolicy.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID
 							unifiFirewallPolicy.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall policy from zone  %s to %s: %+v", zoneCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallPolicy))
+							log.Info(fmt.Sprintf("Trying to create firewall policy from zone  %s to %s: %+v", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name, unifiFirewallPolicy))
 							pretty, _ := json.MarshalIndent(unifiFirewallPolicy, "", "  ")
 							log.Info(string(pretty))
 							updatedPolicy, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallPolicy)
@@ -450,21 +501,21 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 								return ctrl.Result{}, err
 							}
 						} else {
-							log.Info(fmt.Sprintf("Firewall policy for ipv4 tcp %s to %s already exists", zoneCRDs.Items[i].Name, firewallGroup.Name))
+							log.Info(fmt.Sprintf("Firewall policy for ipv4 tcp %s to %s already exists", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name))
 						}
 					}
 					if len(firewallGroup.Status.ResolvedUDPPorts) > 0 {
-						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + zoneCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv4-udp"
+						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "zone:" + zoneCRDs.Items[zoneIndex].Name + "-" + firewallGroup.Name + "-ipv4-udp"
 						if _, found := unifiFirewallpolicyNames[policyname]; !found {
-							log.Info(fmt.Sprintf("Creating ipv4 udp firewallpolicy for %s to %s: %s", zoneCRDs.Items[i].Name, firewallGroup.Name, policyname))
+							log.Info(fmt.Sprintf("Creating ipv4 udp firewallpolicy for %s to %s: %s", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name, policyname))
 							unifiFirewallPolicy := fillDefaultPolicy()
 							unifiFirewallPolicy.Name = policyname
 							unifiFirewallPolicy.Source.PortMatchingType = "ANY"
-							unifiFirewallPolicy.Source.ZoneID = zoneCRDs.Items[i].Spec.ID
+							unifiFirewallPolicy.Source.ZoneID = zoneCRDs.Items[zoneIndex].Spec.ID
 							unifiFirewallPolicy.Source.MatchingTarget = "ANY"
 							unifiFirewallPolicy.Protocol = "udp"
 							unifiFirewallPolicy.IPVersion = "IPV4"
-							unifiFirewallPolicy.Description = fmt.Sprintf("Allow udp IPV4 from %s to %s", zoneCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallPolicy.Description = fmt.Sprintf("Allow udp IPV4 from %s to %s", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name)
 							unifiFirewallPolicy.Destination.MatchingTargetType = "OBJECT"
 							unifiFirewallPolicy.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV4Object.ID
 							unifiFirewallPolicy.Destination.MatchingTarget = "IP"
@@ -472,7 +523,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							unifiFirewallPolicy.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID
 							unifiFirewallPolicy.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall policy from zone  %s to %s: %+v", zoneCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallPolicy))
+							log.Info(fmt.Sprintf("Trying to create firewall policy from zone  %s to %s: %+v", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name, unifiFirewallPolicy))
 							pretty, _ := json.MarshalIndent(unifiFirewallPolicy, "", "  ")
 							log.Info(string(pretty))
 							updatedPolicy, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallPolicy)
@@ -486,23 +537,23 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							}
 
 						} else {
-							log.Info(fmt.Sprintf("Firewall policy for ipv4 udp %s to %s already exists", zoneCRDs.Items[i].Name, firewallGroup.Name))
+							log.Info(fmt.Sprintf("Firewall policy for ipv4 udp %s to %s already exists", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name))
 						}
 					}
 				}
 				if len(firewallGroup.Status.ResolvedIPV6Addresses) > 0 {
 					if len(firewallGroup.Status.ResolvedTCPPorts) > 0 {
-						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + zoneCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv6-tcp"
+						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "zone:"+zoneCRDs.Items[zoneIndex].Name + "-" + firewallGroup.Name + "-ipv6-tcp"
 						if _, found := unifiFirewallpolicyNames[policyname]; !found {
-							log.Info(fmt.Sprintf("Creating ipv6 tcp firewallpolicy for %s to %s: %s", zoneCRDs.Items[i].Name, firewallGroup.Name, policyname))
+							log.Info(fmt.Sprintf("Creating ipv6 tcp firewallpolicy for %s to %s: %s", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name, policyname))
 							unifiFirewallPolicy := fillDefaultPolicy()
 							unifiFirewallPolicy.Name = policyname
 							unifiFirewallPolicy.Source.PortMatchingType = "ANY"
-							unifiFirewallPolicy.Source.ZoneID = zoneCRDs.Items[i].Spec.ID
+							unifiFirewallPolicy.Source.ZoneID = zoneCRDs.Items[zoneIndex].Spec.ID
 							unifiFirewallPolicy.Source.MatchingTarget = "ANY"
 							unifiFirewallPolicy.Protocol = "tcp"
 							unifiFirewallPolicy.IPVersion = "IPV6"
-							unifiFirewallPolicy.Description = fmt.Sprintf("Allow tcp IPV6 from %s to %s", zoneCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallPolicy.Description = fmt.Sprintf("Allow tcp IPV6 from %s to %s", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name)
 							unifiFirewallPolicy.Destination.MatchingTargetType = "OBJECT"
 							unifiFirewallPolicy.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV6Object.ID
 							unifiFirewallPolicy.Destination.MatchingTarget = "IP"
@@ -510,7 +561,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							unifiFirewallPolicy.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID
 							unifiFirewallPolicy.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall policy from zone  %s to %s: %+v", zoneCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallPolicy))
+							log.Info(fmt.Sprintf("Trying to create firewall policy from zone  %s to %s: %+v", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name, unifiFirewallPolicy))
 							pretty, _ := json.MarshalIndent(unifiFirewallPolicy, "", "  ")
 							log.Info(string(pretty))
 							updatedPolicy, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallPolicy)
@@ -524,21 +575,21 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							}
 
 						} else {
-							log.Info(fmt.Sprintf("Firewall policy for ipv6 tcp %s to %s already exists", zoneCRDs.Items[i].Name, firewallGroup.Name))
+							log.Info(fmt.Sprintf("Firewall policy for ipv6 tcp %s to %s already exists", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name))
 						}
 					}
 					if len(firewallGroup.Status.ResolvedUDPPorts) > 0 {
-						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + zoneCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv6-udp"
+						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "zone:"+zoneCRDs.Items[zoneIndex].Name + "-" + firewallGroup.Name + "-ipv6-udp"
 						if _, found := unifiFirewallpolicyNames[policyname]; !found {
-							log.Info(fmt.Sprintf("Creating ipv6 udp firewallpolicy for %s to %s: %s", zoneCRDs.Items[i].Name, firewallGroup.Name, policyname))
+							log.Info(fmt.Sprintf("Creating ipv6 udp firewallpolicy for %s to %s: %s", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name, policyname))
 							unifiFirewallPolicy := fillDefaultPolicy()
 							unifiFirewallPolicy.Name = policyname
 							unifiFirewallPolicy.Source.PortMatchingType = "ANY"
-							unifiFirewallPolicy.Source.ZoneID = zoneCRDs.Items[i].Spec.ID
+							unifiFirewallPolicy.Source.ZoneID = zoneCRDs.Items[zoneIndex].Spec.ID
 							unifiFirewallPolicy.Source.MatchingTarget = "ANY"
 							unifiFirewallPolicy.Protocol = "udp"
 							unifiFirewallPolicy.IPVersion = "IPV6"
-							unifiFirewallPolicy.Description = fmt.Sprintf("Allow udp IPV6 from %s to %s", zoneCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallPolicy.Description = fmt.Sprintf("Allow udp IPV6 from %s to %s", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name)
 							unifiFirewallPolicy.Destination.MatchingTargetType = "OBJECT"
 							unifiFirewallPolicy.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV6Object.ID
 							unifiFirewallPolicy.Destination.MatchingTarget = "IP"
@@ -546,7 +597,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							unifiFirewallPolicy.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID
 							unifiFirewallPolicy.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall policy from zone  %s to %s: %+v", zoneCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallPolicy))
+							log.Info(fmt.Sprintf("Trying to create firewall policy from zone  %s to %s: %+v", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name, unifiFirewallPolicy))
 							pretty, _ := json.MarshalIndent(unifiFirewallPolicy, "", "  ")
 							log.Info(string(pretty))
 							updatedPolicy, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallPolicy)
@@ -560,7 +611,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							}
 
 						} else {
-							log.Info(fmt.Sprintf("Firewall policy for ipv6 udp %s to %s already exists", zoneCRDs.Items[i].Name, firewallGroup.Name))
+							log.Info(fmt.Sprintf("Firewall policy for ipv6 udp %s to %s already exists", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name))
 						}
 					}
 				}
@@ -572,13 +623,13 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if len(networkEntry.Namespace) > 0 {
 			namespace = networkEntry.Namespace
 		}
-		if i, found := networkCRDNames[namespace+"/"+networkEntry.Name]; found {
-			log.Info(fmt.Sprintf("Creating firewallpolicies for %s", networkCRDs.Items[i].Name))
+		if networkIndex, found := networkCRDNames[namespace+"/"+networkEntry.Name]; found {
+			log.Info(fmt.Sprintf("Creating firewallpolicies for %s", networkCRDs.Items[networkIndex].Name))
 			for _, firewallGroup := range myFirewallGroups {
-				index, found := firewallpolicyindex["network:"+networkCRDs.Items[i].Name+"/"+firewallGroup.Name]
+				index, found := firewallpolicyindex["network:"+networkCRDs.Items[networkIndex].Name+"/"+firewallGroup.Name]
 				if !found {
 					firewallPolicyEntry := unifiv1beta1.UnifiFirewallPolicyEntry{
-						From:      "zone:" + networkCRDs.Items[i].Name,
+						From:      "zone:" + networkCRDs.Items[networkIndex].Name,
 						To:        firewallGroup.Name,
 						TcpIpv4ID: "",
 						UdpIpv4ID: "",
@@ -586,23 +637,23 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 						UdpIpv6ID: "",
 					}
 					firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies = append(firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies, firewallPolicyEntry)
-					index = nextIndex
-					nextIndex = nextIndex + 1
+					index = nextFirewallPolicyIndex
+					nextFirewallPolicyIndex = nextFirewallPolicyIndex + 1
 				}
 				if len(firewallGroup.Status.ResolvedIPV4Addresses) > 0 {
 					if len(firewallGroup.Status.ResolvedTCPPorts) > 0 {
-						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + networkCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv4-tcp"
+						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "network:"+networkCRDs.Items[networkIndex].Name + "-" + firewallGroup.Name + "-ipv4-tcp"
 						if _, found := unifiFirewallpolicyNames[policyname]; !found {
-							log.Info(fmt.Sprintf("Creating ipv4 tcp firewallpolicy for %s to %s: %s", networkCRDs.Items[i].Name, firewallGroup.Name, policyname))
+							log.Info(fmt.Sprintf("Creating ipv4 tcp firewallpolicy for %s to %s: %s", networkCRDs.Items[networkIndex].Name, firewallGroup.Name, policyname))
 							unifiFirewallPolicy := fillDefaultPolicy()
 							unifiFirewallPolicy.Name = policyname
-							unifiFirewallPolicy.Source.NetworkIDs = []string{networkCRDs.Items[i].Spec.ID}
+							unifiFirewallPolicy.Source.NetworkIDs = []string{networkCRDs.Items[networkIndex].Spec.ID}
 							unifiFirewallPolicy.Source.PortMatchingType = "ANY"
-							unifiFirewallPolicy.Source.ZoneID = networkCRDs.Items[i].Status.FirewallZoneID
+							unifiFirewallPolicy.Source.ZoneID = networkCRDs.Items[networkIndex].Status.FirewallZoneID
 							unifiFirewallPolicy.Source.MatchingTarget = "NETWORK"
 							unifiFirewallPolicy.Protocol = "tcp"
 							unifiFirewallPolicy.IPVersion = "IPV4"
-							unifiFirewallPolicy.Description = fmt.Sprintf("Allow tcp IPV4 from %s to %s", networkCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallPolicy.Description = fmt.Sprintf("Allow tcp IPV4 from %s to %s", networkCRDs.Items[networkIndex].Name, firewallGroup.Name)
 							unifiFirewallPolicy.Destination.MatchingTargetType = "OBJECT"
 							unifiFirewallPolicy.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV4Object.ID
 							unifiFirewallPolicy.Destination.MatchingTarget = "IP"
@@ -610,7 +661,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							unifiFirewallPolicy.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID
 							unifiFirewallPolicy.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall policy from network  %s to %s: %+v", networkCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallPolicy))
+							log.Info(fmt.Sprintf("Trying to create firewall policy from network  %s to %s: %+v", networkCRDs.Items[networkIndex].Name, firewallGroup.Name, unifiFirewallPolicy))
 							pretty, _ := json.MarshalIndent(unifiFirewallPolicy, "", "  ")
 							log.Info(string(pretty))
 							updatedPolicy, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallPolicy)
@@ -624,22 +675,22 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 								return ctrl.Result{}, err
 							}
 						} else {
-							log.Info(fmt.Sprintf("Firewall policy for ipv4 tcp %s to %s already exists", networkCRDs.Items[i].Name, firewallGroup.Name))
+							log.Info(fmt.Sprintf("Firewall policy for ipv4 tcp %s to %s already exists", networkCRDs.Items[networkIndex].Name, firewallGroup.Name))
 						}
 					}
 					if len(firewallGroup.Status.ResolvedUDPPorts) > 0 {
-						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + networkCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv4-udp"
+						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "network:"+networkCRDs.Items[networkIndex].Name + "-" + firewallGroup.Name + "-ipv4-udp"
 						if _, found := unifiFirewallpolicyNames[policyname]; !found {
-							log.Info(fmt.Sprintf("Creating ipv4 udp firewallpolicy for %s to %s: %s", networkCRDs.Items[i].Name, firewallGroup.Name, policyname))
+							log.Info(fmt.Sprintf("Creating ipv4 udp firewallpolicy for %s to %s: %s", networkCRDs.Items[networkIndex].Name, firewallGroup.Name, policyname))
 							unifiFirewallPolicy := fillDefaultPolicy()
 							unifiFirewallPolicy.Name = policyname
-							unifiFirewallPolicy.Source.NetworkIDs = []string{networkCRDs.Items[i].Spec.ID}
+							unifiFirewallPolicy.Source.NetworkIDs = []string{networkCRDs.Items[networkIndex].Spec.ID}
 							unifiFirewallPolicy.Source.PortMatchingType = "ANY"
-							unifiFirewallPolicy.Source.ZoneID = networkCRDs.Items[i].Status.FirewallZoneID
+							unifiFirewallPolicy.Source.ZoneID = networkCRDs.Items[networkIndex].Status.FirewallZoneID
 							unifiFirewallPolicy.Source.MatchingTarget = "NETWORK"
 							unifiFirewallPolicy.Protocol = "udp"
 							unifiFirewallPolicy.IPVersion = "IPV4"
-							unifiFirewallPolicy.Description = fmt.Sprintf("Allow udp IPV4 from %s to %s", networkCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallPolicy.Description = fmt.Sprintf("Allow udp IPV4 from %s to %s", networkCRDs.Items[networkIndex].Name, firewallGroup.Name)
 							unifiFirewallPolicy.Destination.MatchingTargetType = "OBJECT"
 							unifiFirewallPolicy.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV4Object.ID
 							unifiFirewallPolicy.Destination.MatchingTarget = "IP"
@@ -647,7 +698,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							unifiFirewallPolicy.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID
 							unifiFirewallPolicy.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall policy from network  %s to %s: %+v", networkCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallPolicy))
+							log.Info(fmt.Sprintf("Trying to create firewall policy from network  %s to %s: %+v", networkCRDs.Items[networkIndex].Name, firewallGroup.Name, unifiFirewallPolicy))
 							pretty, _ := json.MarshalIndent(unifiFirewallPolicy, "", "  ")
 							log.Info(string(pretty))
 							updatedPolicy, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallPolicy)
@@ -661,24 +712,24 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							}
 
 						} else {
-							log.Info(fmt.Sprintf("Firewall policy for ipv4 udp %s to %s already exists", networkCRDs.Items[i].Name, firewallGroup.Name))
+							log.Info(fmt.Sprintf("Firewall policy for ipv4 udp %s to %s already exists", networkCRDs.Items[networkIndex].Name, firewallGroup.Name))
 						}
 					}
 				}
 				if len(firewallGroup.Status.ResolvedIPV6Addresses) > 0 {
 					if len(firewallGroup.Status.ResolvedTCPPorts) > 0 {
-						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + networkCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv6-tcp"
+						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "network:"+networkCRDs.Items[networkIndex].Name + "-" + firewallGroup.Name + "-ipv6-tcp"
 						if _, found := unifiFirewallpolicyNames[policyname]; !found {
-							log.Info(fmt.Sprintf("Creating ipv6 tcp firewallpolicy for %s to %s: %s", networkCRDs.Items[i].Name, firewallGroup.Name, policyname))
+							log.Info(fmt.Sprintf("Creating ipv6 tcp firewallpolicy for %s to %s: %s", networkCRDs.Items[networkIndex].Name, firewallGroup.Name, policyname))
 							unifiFirewallPolicy := fillDefaultPolicy()
 							unifiFirewallPolicy.Name = policyname
-							unifiFirewallPolicy.Source.NetworkIDs = []string{networkCRDs.Items[i].Spec.ID}
+							unifiFirewallPolicy.Source.NetworkIDs = []string{networkCRDs.Items[networkIndex].Spec.ID}
 							unifiFirewallPolicy.Source.PortMatchingType = "ANY"
-							unifiFirewallPolicy.Source.ZoneID = networkCRDs.Items[i].Status.FirewallZoneID
+							unifiFirewallPolicy.Source.ZoneID = networkCRDs.Items[networkIndex].Status.FirewallZoneID
 							unifiFirewallPolicy.Source.MatchingTarget = "NETWORK"
 							unifiFirewallPolicy.Protocol = "tcp"
 							unifiFirewallPolicy.IPVersion = "IPV6"
-							unifiFirewallPolicy.Description = fmt.Sprintf("Allow tcp IPV6 from %s to %s", networkCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallPolicy.Description = fmt.Sprintf("Allow tcp IPV6 from %s to %s", networkCRDs.Items[networkIndex].Name, firewallGroup.Name)
 							unifiFirewallPolicy.Destination.MatchingTargetType = "OBJECT"
 							unifiFirewallPolicy.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV6Object.ID
 							unifiFirewallPolicy.Destination.MatchingTarget = "IP"
@@ -686,7 +737,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							unifiFirewallPolicy.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID
 							unifiFirewallPolicy.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall policy from network  %s to %s: %+v", networkCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallPolicy))
+							log.Info(fmt.Sprintf("Trying to create firewall policy from network  %s to %s: %+v", networkCRDs.Items[networkIndex].Name, firewallGroup.Name, unifiFirewallPolicy))
 							pretty, _ := json.MarshalIndent(unifiFirewallPolicy, "", "  ")
 							log.Info(string(pretty))
 							updatedPolicy, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallPolicy)
@@ -700,22 +751,22 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							}
 
 						} else {
-							log.Info(fmt.Sprintf("Firewall policy for ipv6 tcp %s to %s already exists", networkCRDs.Items[i].Name, firewallGroup.Name))
+							log.Info(fmt.Sprintf("Firewall policy for ipv6 tcp %s to %s already exists", networkCRDs.Items[networkIndex].Name, firewallGroup.Name))
 						}
 					}
 					if len(firewallGroup.Status.ResolvedUDPPorts) > 0 {
-						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + networkCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv6-udp"
+						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "network:"+networkCRDs.Items[networkIndex].Name + "-" + firewallGroup.Name + "-ipv6-udp"
 						if _, found := unifiFirewallpolicyNames[policyname]; !found {
-							log.Info(fmt.Sprintf("Creating ipv6 udp firewallpolicy for %s to %s: %s", networkCRDs.Items[i].Name, firewallGroup.Name, policyname))
+							log.Info(fmt.Sprintf("Creating ipv6 udp firewallpolicy for %s to %s: %s", networkCRDs.Items[networkIndex].Name, firewallGroup.Name, policyname))
 							unifiFirewallPolicy := fillDefaultPolicy()
 							unifiFirewallPolicy.Name = policyname
-							unifiFirewallPolicy.Source.NetworkIDs = []string{networkCRDs.Items[i].Spec.ID}
+							unifiFirewallPolicy.Source.NetworkIDs = []string{networkCRDs.Items[networkIndex].Spec.ID}
 							unifiFirewallPolicy.Source.PortMatchingType = "ANY"
-							unifiFirewallPolicy.Source.ZoneID = networkCRDs.Items[i].Status.FirewallZoneID
+							unifiFirewallPolicy.Source.ZoneID = networkCRDs.Items[networkIndex].Status.FirewallZoneID
 							unifiFirewallPolicy.Source.MatchingTarget = "NETWORK"
 							unifiFirewallPolicy.Protocol = "udp"
 							unifiFirewallPolicy.IPVersion = "IPV6"
-							unifiFirewallPolicy.Description = fmt.Sprintf("Allow udp IPV6 from %s to %s", networkCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallPolicy.Description = fmt.Sprintf("Allow udp IPV6 from %s to %s", networkCRDs.Items[networkIndex].Name, firewallGroup.Name)
 							unifiFirewallPolicy.Destination.MatchingTargetType = "OBJECT"
 							unifiFirewallPolicy.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV6Object.ID
 							unifiFirewallPolicy.Destination.MatchingTarget = "IP"
@@ -723,7 +774,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							unifiFirewallPolicy.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID
 							unifiFirewallPolicy.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall policy from network  %s to %s: %+v", networkCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallPolicy))
+							log.Info(fmt.Sprintf("Trying to create firewall policy from network  %s to %s: %+v", networkCRDs.Items[networkIndex].Name, firewallGroup.Name, unifiFirewallPolicy))
 							pretty, _ := json.MarshalIndent(unifiFirewallPolicy, "", "  ")
 							log.Info(string(pretty))
 							updatedPolicy, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallPolicy)
@@ -737,7 +788,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							}
 
 						} else {
-							log.Info(fmt.Sprintf("Firewall policy for ipv6 udp %s to %s already exists", networkCRDs.Items[i].Name, firewallGroup.Name))
+							log.Info(fmt.Sprintf("Firewall policy for ipv6 udp %s to %s already exists", networkCRDs.Items[networkIndex].Name, firewallGroup.Name))
 						}
 					}
 				}
