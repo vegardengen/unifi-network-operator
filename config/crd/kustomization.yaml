@@ -4,7 +4,7 @@
 resources:
 - bases/unifi.engen.priv.no_networkconfigurations.yaml
 - bases/unifi.engen.priv.no_firewallzones.yaml
-- bases/unifi.engen.priv.no_firewallrules.yaml
+- bases/unifi.engen.priv.no_firewallpolicies.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

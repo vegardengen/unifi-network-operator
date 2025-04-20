@@ -41,7 +41,7 @@ type FirewallGroupSpec struct {
 	ManualPorts     []string       `json:"manualPorts,omitempty"`
 	ManualServices  []ServiceEntry `json:"manual_services,omitempty"`
 
-	AutoCreatedFrom FirewallRuleEntry `json:"auto_created_from,omitempty"`
+	AutoCreatedFrom FirewallPolicyEntry `json:"auto_created_from,omitempty"`
 
 	// AutoIncludeSelector defines which services to extract addresses from
 	// +optional

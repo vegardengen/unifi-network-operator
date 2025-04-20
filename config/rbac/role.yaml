@@ -17,7 +17,7 @@ rules:
   - unifi.engen.priv.no
   resources:
   - firewallgroups
-  - firewallrules
+  - firewallpolicies
   - firewallzones
   - networkconfigurations
   verbs:
@@ -32,7 +32,7 @@ rules:
   - unifi.engen.priv.no
   resources:
   - firewallgroups/finalizers
-  - firewallrules/finalizers
+  - firewallpolicies/finalizers
   - firewallzones/finalizers
   - networkconfigurations/finalizers
   verbs:
@@ -41,7 +41,7 @@ rules:
   - unifi.engen.priv.no
   resources:
   - firewallgroups/status
-  - firewallrules/status
+  - firewallpolicies/status
   - firewallzones/status
   - networkconfigurations/status
   verbs:

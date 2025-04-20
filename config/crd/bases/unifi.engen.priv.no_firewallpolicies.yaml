@@ -4,20 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.2
-  name: firewallrules.unifi.engen.priv.no
+  name: firewallpolicies.unifi.engen.priv.no
 spec:
   group: unifi.engen.priv.no
   names:
-    kind: FirewallRule
-    listKind: FirewallRuleList
-    plural: firewallrules
-    singular: firewallrule
+    kind: FirewallPolicy
+    listKind: FirewallPolicyList
+    plural: firewallpolicies
+    singular: firewallpolicy
   scope: Namespaced
   versions:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: FirewallRule is the Schema for the firewallrules API.
+        description: FirewallPolicy is the Schema for the firewallpolicies API.
         properties:
           apiVersion:
             description: |-
@@ -92,7 +92,7 @@ spec:
             - source
             type: object
           status:
-            description: FirewallRuleStatus defines the observed state of FirewallRule.
+            description: FirewallPolicyStatus defines the observed state of FirewallPolicy.
             properties:
               resources_managed:
                 properties:
@@ -105,7 +105,7 @@ spec:
                           type: string
                       type: object
                     type: array
-                  firewall_rules_managed:
+                  firewall_policies_managed:
                     items:
                       properties:
                         from:

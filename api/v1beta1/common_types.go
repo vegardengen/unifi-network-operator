@@ -3,7 +3,6 @@ package v1beta1
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// FirewallRuleSpec defines the desired state of FirewallRule.
 type NamedUnifiResource struct {
 	Name string `json:"name,omitempty"`
 	ID   string `json:"id,omitempty"`
@@ -22,7 +21,7 @@ type FirewallZoneEntry struct {
 	Namespace string `json:"namespace,omitempty"`
 	Name      string `json:"name,omitempty"`
 }
-type FirewallRuleEntry struct {
+type FirewallPolicyEntry struct {
 	Namespace string `json:"namespace,omitempty"`
 	Name      string `json:"name,omitempty"`
 }
