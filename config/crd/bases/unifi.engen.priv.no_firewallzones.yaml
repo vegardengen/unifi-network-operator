@@ -59,7 +59,6 @@ spec:
                 properties:
                   firewall_zones_managed:
                     items:
-                      description: FirewallRuleSpec defines the desired state of FirewallRule.
                       properties:
                         id:
                           type: string

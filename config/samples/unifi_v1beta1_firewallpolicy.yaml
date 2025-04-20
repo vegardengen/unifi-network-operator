@@ -1,8 +1,8 @@
 apiVersion: unifi.engen.priv.no/v1beta1
-kind: FirewallRule
+kind: FirewallPolicy
 metadata:
   labels:
     app.kubernetes.io/name: unifi-network-operator
     app.kubernetes.io/managed-by: kustomize
-  name: firewallrule-sample
+  name: firewallpolicy-sample
 spec:

@@ -97,7 +97,6 @@ spec:
                 properties:
                   networks_managed:
                     items:
-                      description: FirewallRuleSpec defines the desired state of FirewallRule.
                       properties:
                         id:
                           type: string

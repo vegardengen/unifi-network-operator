@@ -23,7 +23,7 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// FirewallRuleSpec defines the desired state of FirewallRule.
+// FirewallPolicySpec defines the desired state of FirewallPolicy.
 // type ServiceSpec struct {
 // 	Namespace string `json:"namespace,omitempty"`
 // 	Name      string `json:"name,omitempty"`
@@ -39,7 +39,7 @@ import (
 //	Services       []ServiceSpec `json:"service,omitempty"`
 //}
 
-type FirewallRuleSpec struct {
+type FirewallPolicySpec struct {
 	Name                               string              `json:"name"`
 	Source                             FirewallSource      `json:"source"`
 	Destination                        FirewallDestination `json:"destination"`
@@ -47,17 +47,17 @@ type FirewallRuleSpec struct {
 	MatchServicesInAllNamespaces       bool                `json:"match_services_in_all_namespaces,omitempty"`
 }
 
-// FirewallRuleStatus defines the observed state of FirewallRule.
-type FirewallRuleStatus struct {
-	ResourcesManaged *FirewallRuleResourcesManaged `json:"resources_managed,omitempty"`
+// FirewallPolicyStatus defines the observed state of FirewallPolicy.
+type FirewallPolicyStatus struct {
+	ResourcesManaged *FirewallPolicyResourcesManaged `json:"resources_managed,omitempty"`
 }
 
-type FirewallRuleResourcesManaged struct {
-	UnifiFirewallRules []UnifiFirewallRuleEntry `json:"firewall_rules_managed,omitempty"`
-	FirewallGroups     []FirewallGroupEntry     `json:"firewall_groups_managed,omitempty"`
+type FirewallPolicyResourcesManaged struct {
+	UnifiFirewallPolicies []UnifiFirewallPolicyEntry `json:"firewall_policies_managed,omitempty"`
+	FirewallGroups        []FirewallGroupEntry       `json:"firewall_groups_managed,omitempty"`
 }
 
-type UnifiFirewallRuleEntry struct {
+type UnifiFirewallPolicyEntry struct {
 	From      string `json:"from"`
 	To        string `json:"to"`
 	TcpIpv4ID string `json:"tcpipv4_id"`
@@ -69,24 +69,24 @@ type UnifiFirewallRuleEntry struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
-// FirewallRule is the Schema for the firewallrules API.
-type FirewallRule struct {
+// FirewallPolicy is the Schema for the firewallpolicies API.
+type FirewallPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   FirewallRuleSpec   `json:"spec,omitempty"`
-	Status FirewallRuleStatus `json:"status,omitempty"`
+	Spec   FirewallPolicySpec   `json:"spec,omitempty"`
+	Status FirewallPolicyStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// FirewallRuleList contains a list of FirewallRule.
-type FirewallRuleList struct {
+// FirewallPolicyList contains a list of FirewallPolicy.
+type FirewallPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []FirewallRule `json:"items"`
+	Items           []FirewallPolicy `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&FirewallRule{}, &FirewallRuleList{})
+	SchemeBuilder.Register(&FirewallPolicy{}, &FirewallPolicyList{})
 }

@@ -147,7 +147,6 @@ spec:
               resources_managed:
                 properties:
                   ipv4_object:
-                    description: FirewallRuleSpec defines the desired state of FirewallRule.
                     properties:
                       id:
                         type: string
@@ -155,7 +154,6 @@ spec:
                         type: string
                     type: object
                   ipv6_object:
-                    description: FirewallRuleSpec defines the desired state of FirewallRule.
                     properties:
                       id:
                         type: string
@@ -163,7 +161,6 @@ spec:
                         type: string
                     type: object
                   tcp_ports_object:
-                    description: FirewallRuleSpec defines the desired state of FirewallRule.
                     properties:
                       id:
                         type: string
@@ -171,7 +168,6 @@ spec:
                         type: string
                     type: object
                   udp_ports_object:
-                    description: FirewallRuleSpec defines the desired state of FirewallRule.
                     properties:
                       id:
                         type: string

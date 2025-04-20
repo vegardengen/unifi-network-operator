@@ -30,7 +30,7 @@ import (
 	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
 )
 
-var _ = Describe("FirewallRule Controller", func() {
+var _ = Describe("FirewallPolicy Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
 
@@ -40,13 +40,13 @@ var _ = Describe("FirewallRule Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		firewallrule := &unifiv1beta1.FirewallRule{}
+		firewallpolicy := &unifiv1beta1.FirewallPolicy{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind FirewallRule")
-			err := k8sClient.Get(ctx, typeNamespacedName, firewallrule)
+			By("creating the custom resource for the Kind FirewallPolicy")
+			err := k8sClient.Get(ctx, typeNamespacedName, firewallpolicy)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &unifiv1beta1.FirewallRule{
+				resource := &unifiv1beta1.FirewallPolicy{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -59,16 +59,16 @@ var _ = Describe("FirewallRule Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &unifiv1beta1.FirewallRule{}
+			resource := &unifiv1beta1.FirewallPolicy{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance FirewallRule")
+			By("Cleanup the specific resource instance FirewallPolicy")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
-			controllerReconciler := &FirewallRuleReconciler{
+			controllerReconciler := &FirewallPolicyReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
 			}
