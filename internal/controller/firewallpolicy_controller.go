@@ -99,8 +99,6 @@ func fillDefaultPolicy() goUnifi.FirewallPolicy {
 func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	// TODO(user): your logic here
-
 	cfg, err := r.ConfigLoader.GetConfig(ctx, "unifi-operator-config")
 	if err != nil {
 		return ctrl.Result{}, err
@@ -543,7 +541,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				}
 				if len(firewallGroup.Status.ResolvedIPV6Addresses) > 0 {
 					if len(firewallGroup.Status.ResolvedTCPPorts) > 0 {
-						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "zone:"+zoneCRDs.Items[zoneIndex].Name + "-" + firewallGroup.Name + "-ipv6-tcp"
+						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "zone:" + zoneCRDs.Items[zoneIndex].Name + "-" + firewallGroup.Name + "-ipv6-tcp"
 						if _, found := unifiFirewallpolicyNames[policyname]; !found {
 							log.Info(fmt.Sprintf("Creating ipv6 tcp firewallpolicy for %s to %s: %s", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name, policyname))
 							unifiFirewallPolicy := fillDefaultPolicy()
@@ -579,7 +577,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 						}
 					}
 					if len(firewallGroup.Status.ResolvedUDPPorts) > 0 {
-						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "zone:"+zoneCRDs.Items[zoneIndex].Name + "-" + firewallGroup.Name + "-ipv6-udp"
+						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "zone:" + zoneCRDs.Items[zoneIndex].Name + "-" + firewallGroup.Name + "-ipv6-udp"
 						if _, found := unifiFirewallpolicyNames[policyname]; !found {
 							log.Info(fmt.Sprintf("Creating ipv6 udp firewallpolicy for %s to %s: %s", zoneCRDs.Items[zoneIndex].Name, firewallGroup.Name, policyname))
 							unifiFirewallPolicy := fillDefaultPolicy()
@@ -642,7 +640,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				}
 				if len(firewallGroup.Status.ResolvedIPV4Addresses) > 0 {
 					if len(firewallGroup.Status.ResolvedTCPPorts) > 0 {
-						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "network:"+networkCRDs.Items[networkIndex].Name + "-" + firewallGroup.Name + "-ipv4-tcp"
+						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "network:" + networkCRDs.Items[networkIndex].Name + "-" + firewallGroup.Name + "-ipv4-tcp"
 						if _, found := unifiFirewallpolicyNames[policyname]; !found {
 							log.Info(fmt.Sprintf("Creating ipv4 tcp firewallpolicy for %s to %s: %s", networkCRDs.Items[networkIndex].Name, firewallGroup.Name, policyname))
 							unifiFirewallPolicy := fillDefaultPolicy()
@@ -679,7 +677,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 						}
 					}
 					if len(firewallGroup.Status.ResolvedUDPPorts) > 0 {
-						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "network:"+networkCRDs.Items[networkIndex].Name + "-" + firewallGroup.Name + "-ipv4-udp"
+						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "network:" + networkCRDs.Items[networkIndex].Name + "-" + firewallGroup.Name + "-ipv4-udp"
 						if _, found := unifiFirewallpolicyNames[policyname]; !found {
 							log.Info(fmt.Sprintf("Creating ipv4 udp firewallpolicy for %s to %s: %s", networkCRDs.Items[networkIndex].Name, firewallGroup.Name, policyname))
 							unifiFirewallPolicy := fillDefaultPolicy()
@@ -718,7 +716,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				}
 				if len(firewallGroup.Status.ResolvedIPV6Addresses) > 0 {
 					if len(firewallGroup.Status.ResolvedTCPPorts) > 0 {
-						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "network:"+networkCRDs.Items[networkIndex].Name + "-" + firewallGroup.Name + "-ipv6-tcp"
+						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "network:" + networkCRDs.Items[networkIndex].Name + "-" + firewallGroup.Name + "-ipv6-tcp"
 						if _, found := unifiFirewallpolicyNames[policyname]; !found {
 							log.Info(fmt.Sprintf("Creating ipv6 tcp firewallpolicy for %s to %s: %s", networkCRDs.Items[networkIndex].Name, firewallGroup.Name, policyname))
 							unifiFirewallPolicy := fillDefaultPolicy()
@@ -755,7 +753,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 						}
 					}
 					if len(firewallGroup.Status.ResolvedUDPPorts) > 0 {
-						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "network:"+networkCRDs.Items[networkIndex].Name + "-" + firewallGroup.Name + "-ipv6-udp"
+						policyname := "k8s-fw-" + firewallPolicy.Name + "-" + "network:" + networkCRDs.Items[networkIndex].Name + "-" + firewallGroup.Name + "-ipv6-udp"
 						if _, found := unifiFirewallpolicyNames[policyname]; !found {
 							log.Info(fmt.Sprintf("Creating ipv6 udp firewallpolicy for %s to %s: %s", networkCRDs.Items[networkIndex].Name, firewallGroup.Name, policyname))
 							unifiFirewallPolicy := fillDefaultPolicy()
@@ -805,6 +803,13 @@ func (r *FirewallPolicyReconciler) mapFirewallGroupToFirewallPolicies(ctx contex
 		return requests
 	}
 
+	cfg, err := r.ConfigLoader.GetConfig(ctx, "unifi-operator-config")
+	if err != nil {
+		return requests
+	}
+
+	defaultNs := cfg.Data["defaultNamespace"]
+
 	var allFirewallPolicies unifiv1beta1.FirewallPolicyList
 
 	if err := r.List(ctx, &allFirewallPolicies); err != nil {
@@ -813,9 +818,7 @@ func (r *FirewallPolicyReconciler) mapFirewallGroupToFirewallPolicies(ctx contex
 
 	for _, policy := range allFirewallPolicies.Items {
 		if policy.Spec.MatchFirewallGroupsInAllNamespaces || policy.Namespace == firewallGroup.Namespace {
-			annotationKey := "unifi.engen.priv.no/firewall-policy"
-			annotationVal := policy.Name
-			if val, ok := firewallGroup.Annotations[annotationKey]; ok && (annotationVal == "" || val == annotationVal) {
+			if val, found := firewallGroup.Annotations["unifi.engen.priv.no/firewall-policy"]; found && ((strings.Contains(val, "/") && val == policy.Namespace+"/"+policy.Name) || (val == policy.Name && policy.Namespace == defaultNs)) {
 				requests = append(requests, ctrl.Request{
 					NamespacedName: types.NamespacedName{
 						Name:      policy.Name,
@@ -836,6 +839,13 @@ func (r *FirewallPolicyReconciler) mapServiceToFirewallPolicies(ctx context.Cont
 		return requests
 	}
 
+	cfg, err := r.ConfigLoader.GetConfig(ctx, "unifi-operator-config")
+	if err != nil {
+		return requests
+	}
+
+	defaultNs := cfg.Data["defaultNamespace"]
+
 	var allFirewallPolicies unifiv1beta1.FirewallPolicyList
 
 	if err := r.List(ctx, &allFirewallPolicies); err != nil {
@@ -844,9 +854,7 @@ func (r *FirewallPolicyReconciler) mapServiceToFirewallPolicies(ctx context.Cont
 
 	for _, policy := range allFirewallPolicies.Items {
 		if policy.Spec.MatchServicesInAllNamespaces || policy.Namespace == service.Namespace {
-			annotationKey := "unifi.engen.priv.no/firewall-policy"
-			annotationVal := policy.Name
-			if val, ok := service.Annotations[annotationKey]; ok && (annotationVal == "" || val == annotationVal) {
+			if val, found := service.Annotations["unifi.engen.priv.no/firewall-policy"]; found && ((strings.Contains(val, "/") && val == policy.Namespace+"/"+policy.Name) || (val == policy.Name && policy.Namespace == defaultNs)) {
 				requests = append(requests, ctrl.Request{
 					NamespacedName: types.NamespacedName{
 						Name:      policy.Name,
