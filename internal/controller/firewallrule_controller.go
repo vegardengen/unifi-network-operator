@@ -22,6 +22,7 @@ import (
 	// "strings"
 	"encoding/json"
 	"time"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -128,10 +129,10 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 			if len(firewallRule.Status.ResourcesManaged.UnifiFirewallRules) > 0 {
 				for i, UnifiFirewallRule := range firewallRule.Status.ResourcesManaged.UnifiFirewallRules {
+					log.Info(fmt.Sprintf("From: %s to: %s TcpIpv4: %s UdpIpv4: %s TcpIpv6: %s UdpIpv6: %s", UnifiFirewallRule.From, UnifiFirewallRule.To, UnifiFirewallRule.TcpIpv4ID, UnifiFirewallRule.UdpIpv4ID, UnifiFirewallRule.TcpIpv6ID, UnifiFirewallRule.UdpIpv6ID))
 					if len(UnifiFirewallRule.TcpIpv4ID) > 0 {
 						err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallRule.TcpIpv4ID)
-						if err != nil {
-							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+						if err != nil && !strings.Contains(err.Error(), "not found") {
 						} else {
 							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].TcpIpv4ID = ""
 							if err := r.Status().Update(ctx, &firewallRule); err != nil {
@@ -141,7 +142,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 					}
 					if len(UnifiFirewallRule.UdpIpv4ID) > 0 {
 						err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallRule.UdpIpv4ID)
-						if err != nil {
+						if err != nil && !strings.Contains(err.Error(), "not found") {
 							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 						} else {
 							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].UdpIpv4ID = ""
@@ -152,7 +153,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 					}
 					if len(UnifiFirewallRule.TcpIpv6ID) > 0 {
 						err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallRule.TcpIpv6ID)
-						if err != nil {
+						if err != nil && !strings.Contains(err.Error(), "not found") {
 							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 						} else {
 							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].TcpIpv6ID = ""
@@ -163,7 +164,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 					}
 					if len(UnifiFirewallRule.UdpIpv6ID) > 0 {
 						err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallRule.UdpIpv6ID)
-						if err != nil {
+						if err != nil && !strings.Contains(err.Error(), "not found") {
 							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 						} else {
 							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].UdpIpv6ID = ""
@@ -179,7 +180,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				for i, firewallGroup := range firewallRule.Status.ResourcesManaged.FirewallGroups {
 					var firewallGroupCRD unifiv1beta1.FirewallGroup
 					if firewallGroup.Name != "" {
-						if err := r.Get(ctx, types.NamespacedName{Name: firewallGroup.Name, Namespace: firewallGroupCRD.Namespace}, &firewallGroupCRD); err != nil {
+						if err := r.Get(ctx, types.NamespacedName{Name: firewallGroup.Name, Namespace: firewallGroup.Namespace}, &firewallGroupCRD); err != nil {
 							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 						}
 						if err := r.Delete(ctx, &firewallGroupCRD); err != nil {
@@ -400,7 +401,8 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if i, found := zoneCRDNames[namespace+"/"+zoneEntry.Name]; found {
 			log.Info(fmt.Sprintf("Creating firewallrules for %s", zoneCRDs.Items[i].Name))
 			for _, firewallGroup := range myFirewallGroups {
-				i, found := firewallruleindex["zone:"+zoneCRDs.Items[i].Name+"/"+firewallGroup.Name]
+				found := false
+				index, found := firewallruleindex["zone:"+zoneCRDs.Items[i].Name+"/"+firewallGroup.Name]
 				if !found {
 					firewallRuleEntry := unifiv1beta1.UnifiFirewallRuleEntry{
 						From:      "zone:" + zoneCRDs.Items[i].Name,
@@ -411,7 +413,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 						UdpIpv6ID: "",
 					}
 					firewallRule.Status.ResourcesManaged.UnifiFirewallRules = append(firewallRule.Status.ResourcesManaged.UnifiFirewallRules, firewallRuleEntry)
-					i = nextIndex
+					index = nextIndex
 					nextIndex = nextIndex + 1
 				}
 
@@ -443,7 +445,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 								log.Error(err, "Could not create firewall policy")
 								return ctrl.Result{}, err
 							}
-							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].TcpIpv4ID = updatedRule.ID
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].TcpIpv4ID = updatedRule.ID
 							if err = r.Status().Update(ctx, &firewallRule); err != nil {
 								return ctrl.Result{}, err
 							}
@@ -478,7 +480,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 								log.Error(err, "Could not create firewall policy")
 								return ctrl.Result{}, err
 							}
-							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].UdpIpv4ID = updatedRule.ID
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].UdpIpv4ID = updatedRule.ID
 							if err := r.Status().Update(ctx, &firewallRule); err != nil {
 								return ctrl.Result{}, err
 							}
@@ -516,7 +518,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 								log.Error(err, "Could not create firewall policy")
 								return ctrl.Result{}, err
 							}
-							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].TcpIpv6ID = updatedRule.ID
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].TcpIpv6ID = updatedRule.ID
 							if err := r.Status().Update(ctx, &firewallRule); err != nil {
 								return ctrl.Result{}, err
 							}
@@ -552,7 +554,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 								log.Error(err, "Could not create firewall policy")
 								return ctrl.Result{}, err
 							}
-							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].UdpIpv6ID = updatedRule.ID
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].UdpIpv6ID = updatedRule.ID
 							if err := r.Status().Update(ctx, &firewallRule); err != nil {
 								return ctrl.Result{}, err
 							}
@@ -573,7 +575,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if i, found := networkCRDNames[namespace+"/"+networkEntry.Name]; found {
 			log.Info(fmt.Sprintf("Creating firewallrules for %s", networkCRDs.Items[i].Name))
 			for _, firewallGroup := range myFirewallGroups {
-				i, found := firewallruleindex["network:"+networkCRDs.Items[i].Name+"/"+firewallGroup.Name]
+				index, found := firewallruleindex["network:"+networkCRDs.Items[i].Name+"/"+firewallGroup.Name]
 				if !found {
 					firewallRuleEntry := unifiv1beta1.UnifiFirewallRuleEntry{
 						From:      "zone:" + networkCRDs.Items[i].Name,
@@ -584,7 +586,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 						UdpIpv6ID: "",
 					}
 					firewallRule.Status.ResourcesManaged.UnifiFirewallRules = append(firewallRule.Status.ResourcesManaged.UnifiFirewallRules, firewallRuleEntry)
-					i = nextIndex
+					index = nextIndex
 					nextIndex = nextIndex + 1
 				}
 				if len(firewallGroup.Status.ResolvedIPV4Addresses) > 0 {
@@ -617,7 +619,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 								return ctrl.Result{}, err
 							}
 
-							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].TcpIpv4ID = updatedRule.ID
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].TcpIpv4ID = updatedRule.ID
 							if err := r.Status().Update(ctx, &firewallRule); err != nil {
 								return ctrl.Result{}, err
 							}
@@ -653,7 +655,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 								log.Error(err, "Could not create firewall policy")
 								return ctrl.Result{}, err
 							}
-							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].UdpIpv4ID = updatedRule.ID
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].UdpIpv4ID = updatedRule.ID
 							if err := r.Status().Update(ctx, &firewallRule); err != nil {
 								return ctrl.Result{}, err
 							}
@@ -692,7 +694,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 								log.Error(err, "Could not create firewall policy")
 								return ctrl.Result{}, err
 							}
-							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].TcpIpv6ID = updatedRule.ID
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].TcpIpv6ID = updatedRule.ID
 							if err := r.Status().Update(ctx, &firewallRule); err != nil {
 								return ctrl.Result{}, err
 							}
@@ -729,7 +731,7 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 								log.Error(err, "Could not create firewall policy")
 								return ctrl.Result{}, err
 							}
-							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].UdpIpv6ID = updatedRule.ID
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].UdpIpv6ID = updatedRule.ID
 							if err := r.Status().Update(ctx, &firewallRule); err != nil {
 								return ctrl.Result{}, err
 							}
