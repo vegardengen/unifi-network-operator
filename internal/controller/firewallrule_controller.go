@@ -22,12 +22,14 @@ import (
 	// "strings"
 	"encoding/json"
 	"time"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -44,6 +46,8 @@ type FirewallRuleReconciler struct {
 	UnifiClient  *unifi.UnifiClient
 	ConfigLoader *config.ConfigLoaderType
 }
+
+const firewallRuleFinalizer = "finalizer.unifi.engen.priv.no/firewallrule"
 
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallrules,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=unifi.engen.priv.no,resources=firewallrules/status,verbs=get;update;patch
@@ -115,12 +119,112 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	log.Info(firewallRule.Spec.Name)
 
+	if firewallRule.DeletionTimestamp != nil {
+		if controllerutil.ContainsFinalizer(&firewallRule, firewallRuleFinalizer) {
+			err := r.UnifiClient.Reauthenticate()
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			log.Info("Running finalizer logic for FirewallRule", "name", firewallRule.Name)
+
+			if len(firewallRule.Status.ResourcesManaged.UnifiFirewallRules) > 0 {
+				for i, UnifiFirewallRule := range firewallRule.Status.ResourcesManaged.UnifiFirewallRules {
+					log.Info(fmt.Sprintf("From: %s to: %s TcpIpv4: %s UdpIpv4: %s TcpIpv6: %s UdpIpv6: %s", UnifiFirewallRule.From, UnifiFirewallRule.To, UnifiFirewallRule.TcpIpv4ID, UnifiFirewallRule.UdpIpv4ID, UnifiFirewallRule.TcpIpv6ID, UnifiFirewallRule.UdpIpv6ID))
+					if len(UnifiFirewallRule.TcpIpv4ID) > 0 {
+						err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallRule.TcpIpv4ID)
+						if err != nil && !strings.Contains(err.Error(), "not found") {
+						} else {
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].TcpIpv4ID = ""
+							if err := r.Status().Update(ctx, &firewallRule); err != nil {
+								return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+							}
+						}
+					}
+					if len(UnifiFirewallRule.UdpIpv4ID) > 0 {
+						err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallRule.UdpIpv4ID)
+						if err != nil && !strings.Contains(err.Error(), "not found") {
+							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+						} else {
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].UdpIpv4ID = ""
+							if err := r.Status().Update(ctx, &firewallRule); err != nil {
+								return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+							}
+						}
+					}
+					if len(UnifiFirewallRule.TcpIpv6ID) > 0 {
+						err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallRule.TcpIpv6ID)
+						if err != nil && !strings.Contains(err.Error(), "not found") {
+							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+						} else {
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].TcpIpv6ID = ""
+							if err := r.Status().Update(ctx, &firewallRule); err != nil {
+								return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+							}
+						}
+					}
+					if len(UnifiFirewallRule.UdpIpv6ID) > 0 {
+						err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallRule.UdpIpv6ID)
+						if err != nil && !strings.Contains(err.Error(), "not found") {
+							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+						} else {
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[i].UdpIpv6ID = ""
+							if err := r.Status().Update(ctx, &firewallRule); err != nil {
+								return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+							}
+						}
+					}
+				}
+			}
+
+			if len(firewallRule.Status.ResourcesManaged.FirewallGroups) > 0 {
+				for i, firewallGroup := range firewallRule.Status.ResourcesManaged.FirewallGroups {
+					var firewallGroupCRD unifiv1beta1.FirewallGroup
+					if firewallGroup.Name != "" {
+						if err := r.Get(ctx, types.NamespacedName{Name: firewallGroup.Name, Namespace: firewallGroup.Namespace}, &firewallGroupCRD); err != nil {
+							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+						}
+						if err := r.Delete(ctx, &firewallGroupCRD); err != nil {
+							log.Error(err, "Could not delete firewall group")
+							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+						}
+						firewallRule.Status.ResourcesManaged.FirewallGroups[i].Name = ""
+						firewallRule.Status.ResourcesManaged.FirewallGroups[i].Namespace = ""
+						if err := r.Status().Update(ctx, &firewallRule); err != nil {
+							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+						}
+					}
+				}
+			}
+			controllerutil.RemoveFinalizer(&firewallRule, firewallRuleFinalizer)
+			if err := r.Update(ctx, &firewallRule); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			log.Info("Successfully finalized FirewallGroup")
+		}
+		return ctrl.Result{}, nil
+	}
+	if !controllerutil.ContainsFinalizer(&firewallRule, firewallRuleFinalizer) {
+		controllerutil.AddFinalizer(&firewallRule, firewallRuleFinalizer)
+		if err := r.Update(ctx, &firewallRule); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	firewallruleindex := make(map[string]int)
+
+	nextIndex := 0
 	if firewallRule.Status.ResourcesManaged == nil {
 		firewallGroupsManaged := []unifiv1beta1.FirewallGroupEntry{}
 		unifiFirewallRules := []unifiv1beta1.UnifiFirewallRuleEntry{}
 		firewallRule.Status.ResourcesManaged = &unifiv1beta1.FirewallRuleResourcesManaged{
 			UnifiFirewallRules: unifiFirewallRules,
 			FirewallGroups:     firewallGroupsManaged,
+		}
+	} else {
+		for index, firewallRuleEntry := range firewallRule.Status.ResourcesManaged.UnifiFirewallRules {
+			firewallruleindex[firewallRuleEntry.From+"/"+firewallRuleEntry.To] = index
+			nextIndex = nextIndex + 1
 		}
 	}
 	err = r.UnifiClient.Reauthenticate()
@@ -258,9 +362,10 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				log.Error(err, fmt.Sprintf("Failed to create %s", createdFirewallGroupCRD.Name))
 				return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
 			} else {
+				time.Sleep(10 * time.Second)
 				_ = r.Get(ctx, types.NamespacedName{Name: createdFirewallGroupCRD.Name, Namespace: createdFirewallGroupCRD.Namespace}, &firewallGroupCRD)
 			}
-			log.Info("Adding %+v", firewallGroupCRD)
+			log.Info(fmt.Sprintf("Adding %+v", firewallGroupCRD))
 			myFirewallGroups = append(myFirewallGroups, firewallGroupCRD)
 			found := false
 			for _, managedFirewallGroup := range firewallRule.Status.ResourcesManaged.FirewallGroups {
@@ -296,35 +401,54 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if i, found := zoneCRDNames[namespace+"/"+zoneEntry.Name]; found {
 			log.Info(fmt.Sprintf("Creating firewallrules for %s", zoneCRDs.Items[i].Name))
 			for _, firewallGroup := range myFirewallGroups {
+				found := false
+				index, found := firewallruleindex["zone:"+zoneCRDs.Items[i].Name+"/"+firewallGroup.Name]
+				if !found {
+					firewallRuleEntry := unifiv1beta1.UnifiFirewallRuleEntry{
+						From:      "zone:" + zoneCRDs.Items[i].Name,
+						To:        firewallGroup.Name,
+						TcpIpv4ID: "",
+						UdpIpv4ID: "",
+						TcpIpv6ID: "",
+						UdpIpv6ID: "",
+					}
+					firewallRule.Status.ResourcesManaged.UnifiFirewallRules = append(firewallRule.Status.ResourcesManaged.UnifiFirewallRules, firewallRuleEntry)
+					index = nextIndex
+					nextIndex = nextIndex + 1
+				}
+
 				if len(firewallGroup.Status.ResolvedIPV4Addresses) > 0 {
 					if len(firewallGroup.Status.ResolvedTCPPorts) > 0 {
 						rulename := "k8s-fw-" + firewallRule.Name + "-" + zoneCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv4-tcp"
 						if _, found := unifiFirewallruleNames[rulename]; !found {
 							log.Info(fmt.Sprintf("Creating ipv4 tcp firewallrule for %s to %s: %s", zoneCRDs.Items[i].Name, firewallGroup.Name, rulename))
-							firewallRule := fillDefaultRule()
-							firewallRule.Name = rulename
-							firewallRule.Source.PortMatchingType = "ANY"
-							firewallRule.Source.ZoneID = zoneCRDs.Items[i].Spec.ID
-							firewallRule.Source.MatchingTarget = "ANY"
-							firewallRule.Protocol = "tcp"
-							firewallRule.IPVersion = "IPV4"
-							firewallRule.Description = fmt.Sprintf("Allow tcp IPV4 from %s to %s", zoneCRDs.Items[i].Name, firewallGroup.Name)
-							firewallRule.Destination.MatchingTargetType = "OBJECT"
-							firewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV4Object.ID
-							firewallRule.Destination.MatchingTarget = "IP"
-							firewallRule.Destination.PortMatchingType = "OBJECT"
-							firewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID
-							firewallRule.Destination.ZoneID = kubernetesZoneID
+							unifiFirewallRule := fillDefaultRule()
+							unifiFirewallRule.Name = rulename
+							unifiFirewallRule.Source.PortMatchingType = "ANY"
+							unifiFirewallRule.Source.ZoneID = zoneCRDs.Items[i].Spec.ID
+							unifiFirewallRule.Source.MatchingTarget = "ANY"
+							unifiFirewallRule.Protocol = "tcp"
+							unifiFirewallRule.IPVersion = "IPV4"
+							unifiFirewallRule.Description = fmt.Sprintf("Allow tcp IPV4 from %s to %s", zoneCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallRule.Destination.MatchingTargetType = "OBJECT"
+							unifiFirewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV4Object.ID
+							unifiFirewallRule.Destination.MatchingTarget = "IP"
+							unifiFirewallRule.Destination.PortMatchingType = "OBJECT"
+							unifiFirewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID
+							unifiFirewallRule.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall rule from zone  %s to %s: %+v", zoneCRDs.Items[i].Name, firewallGroup.Name, firewallRule))
-							pretty, _ := json.MarshalIndent(firewallRule, "", "  ")
+							log.Info(fmt.Sprintf("Trying to create firewall rule from zone  %s to %s: %+v", zoneCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallRule))
+							pretty, _ := json.MarshalIndent(unifiFirewallRule, "", "  ")
 							log.Info(string(pretty))
-							_, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &firewallRule)
+							updatedRule, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallRule)
 							if err != nil {
 								log.Error(err, "Could not create firewall policy")
 								return ctrl.Result{}, err
 							}
-
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].TcpIpv4ID = updatedRule.ID
+							if err = r.Status().Update(ctx, &firewallRule); err != nil {
+								return ctrl.Result{}, err
+							}
 						} else {
 							log.Info(fmt.Sprintf("Firewall rule for ipv4 tcp %s to %s already exists", zoneCRDs.Items[i].Name, firewallGroup.Name))
 						}
@@ -333,27 +457,31 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 						rulename := "k8s-fw-" + firewallRule.Name + "-" + zoneCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv4-udp"
 						if _, found := unifiFirewallruleNames[rulename]; !found {
 							log.Info(fmt.Sprintf("Creating ipv4 udp firewallrule for %s to %s: %s", zoneCRDs.Items[i].Name, firewallGroup.Name, rulename))
-							firewallRule := fillDefaultRule()
-							firewallRule.Name = rulename
-							firewallRule.Source.PortMatchingType = "ANY"
-							firewallRule.Source.ZoneID = zoneCRDs.Items[i].Spec.ID
-							firewallRule.Source.MatchingTarget = "ANY"
-							firewallRule.Protocol = "udp"
-							firewallRule.IPVersion = "IPV4"
-							firewallRule.Description = fmt.Sprintf("Allow udp IPV4 from %s to %s", zoneCRDs.Items[i].Name, firewallGroup.Name)
-							firewallRule.Destination.MatchingTargetType = "OBJECT"
-							firewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV4Object.ID
-							firewallRule.Destination.MatchingTarget = "IP"
-							firewallRule.Destination.PortMatchingType = "OBJECT"
-							firewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID
-							firewallRule.Destination.ZoneID = kubernetesZoneID
+							unifiFirewallRule := fillDefaultRule()
+							unifiFirewallRule.Name = rulename
+							unifiFirewallRule.Source.PortMatchingType = "ANY"
+							unifiFirewallRule.Source.ZoneID = zoneCRDs.Items[i].Spec.ID
+							unifiFirewallRule.Source.MatchingTarget = "ANY"
+							unifiFirewallRule.Protocol = "udp"
+							unifiFirewallRule.IPVersion = "IPV4"
+							unifiFirewallRule.Description = fmt.Sprintf("Allow udp IPV4 from %s to %s", zoneCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallRule.Destination.MatchingTargetType = "OBJECT"
+							unifiFirewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV4Object.ID
+							unifiFirewallRule.Destination.MatchingTarget = "IP"
+							unifiFirewallRule.Destination.PortMatchingType = "OBJECT"
+							unifiFirewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID
+							unifiFirewallRule.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall rule from zone  %s to %s: %+v", zoneCRDs.Items[i].Name, firewallGroup.Name, firewallRule))
-							pretty, _ := json.MarshalIndent(firewallRule, "", "  ")
+							log.Info(fmt.Sprintf("Trying to create firewall rule from zone  %s to %s: %+v", zoneCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallRule))
+							pretty, _ := json.MarshalIndent(unifiFirewallRule, "", "  ")
 							log.Info(string(pretty))
-							_, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &firewallRule)
+							updatedRule, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallRule)
 							if err != nil {
 								log.Error(err, "Could not create firewall policy")
+								return ctrl.Result{}, err
+							}
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].UdpIpv4ID = updatedRule.ID
+							if err := r.Status().Update(ctx, &firewallRule); err != nil {
 								return ctrl.Result{}, err
 							}
 
@@ -367,27 +495,31 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 						rulename := "k8s-fw-" + firewallRule.Name + "-" + zoneCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv6-tcp"
 						if _, found := unifiFirewallruleNames[rulename]; !found {
 							log.Info(fmt.Sprintf("Creating ipv6 tcp firewallrule for %s to %s: %s", zoneCRDs.Items[i].Name, firewallGroup.Name, rulename))
-							firewallRule := fillDefaultRule()
-							firewallRule.Name = rulename
-							firewallRule.Source.PortMatchingType = "ANY"
-							firewallRule.Source.ZoneID = zoneCRDs.Items[i].Spec.ID
-							firewallRule.Source.MatchingTarget = "ANY"
-							firewallRule.Protocol = "tcp"
-							firewallRule.IPVersion = "IPV6"
-							firewallRule.Description = fmt.Sprintf("Allow tcp IPV6 from %s to %s", zoneCRDs.Items[i].Name, firewallGroup.Name)
-							firewallRule.Destination.MatchingTargetType = "OBJECT"
-							firewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV6Object.ID
-							firewallRule.Destination.MatchingTarget = "IP"
-							firewallRule.Destination.PortMatchingType = "OBJECT"
-							firewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID
-							firewallRule.Destination.ZoneID = kubernetesZoneID
+							unifiFirewallRule := fillDefaultRule()
+							unifiFirewallRule.Name = rulename
+							unifiFirewallRule.Source.PortMatchingType = "ANY"
+							unifiFirewallRule.Source.ZoneID = zoneCRDs.Items[i].Spec.ID
+							unifiFirewallRule.Source.MatchingTarget = "ANY"
+							unifiFirewallRule.Protocol = "tcp"
+							unifiFirewallRule.IPVersion = "IPV6"
+							unifiFirewallRule.Description = fmt.Sprintf("Allow tcp IPV6 from %s to %s", zoneCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallRule.Destination.MatchingTargetType = "OBJECT"
+							unifiFirewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV6Object.ID
+							unifiFirewallRule.Destination.MatchingTarget = "IP"
+							unifiFirewallRule.Destination.PortMatchingType = "OBJECT"
+							unifiFirewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID
+							unifiFirewallRule.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall rule from zone  %s to %s: %+v", zoneCRDs.Items[i].Name, firewallGroup.Name, firewallRule))
-							pretty, _ := json.MarshalIndent(firewallRule, "", "  ")
+							log.Info(fmt.Sprintf("Trying to create firewall rule from zone  %s to %s: %+v", zoneCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallRule))
+							pretty, _ := json.MarshalIndent(unifiFirewallRule, "", "  ")
 							log.Info(string(pretty))
-							_, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &firewallRule)
+							updatedRule, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallRule)
 							if err != nil {
 								log.Error(err, "Could not create firewall policy")
+								return ctrl.Result{}, err
+							}
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].TcpIpv6ID = updatedRule.ID
+							if err := r.Status().Update(ctx, &firewallRule); err != nil {
 								return ctrl.Result{}, err
 							}
 
@@ -399,27 +531,31 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 						rulename := "k8s-fw-" + firewallRule.Name + "-" + zoneCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv6-udp"
 						if _, found := unifiFirewallruleNames[rulename]; !found {
 							log.Info(fmt.Sprintf("Creating ipv6 udp firewallrule for %s to %s: %s", zoneCRDs.Items[i].Name, firewallGroup.Name, rulename))
-							firewallRule := fillDefaultRule()
-							firewallRule.Name = rulename
-							firewallRule.Source.PortMatchingType = "ANY"
-							firewallRule.Source.ZoneID = zoneCRDs.Items[i].Spec.ID
-							firewallRule.Source.MatchingTarget = "ANY"
-							firewallRule.Protocol = "udp"
-							firewallRule.IPVersion = "IPV6"
-							firewallRule.Description = fmt.Sprintf("Allow udp IPV6 from %s to %s", zoneCRDs.Items[i].Name, firewallGroup.Name)
-							firewallRule.Destination.MatchingTargetType = "OBJECT"
-							firewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV6Object.ID
-							firewallRule.Destination.MatchingTarget = "IP"
-							firewallRule.Destination.PortMatchingType = "OBJECT"
-							firewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID
-							firewallRule.Destination.ZoneID = kubernetesZoneID
+							unifiFirewallRule := fillDefaultRule()
+							unifiFirewallRule.Name = rulename
+							unifiFirewallRule.Source.PortMatchingType = "ANY"
+							unifiFirewallRule.Source.ZoneID = zoneCRDs.Items[i].Spec.ID
+							unifiFirewallRule.Source.MatchingTarget = "ANY"
+							unifiFirewallRule.Protocol = "udp"
+							unifiFirewallRule.IPVersion = "IPV6"
+							unifiFirewallRule.Description = fmt.Sprintf("Allow udp IPV6 from %s to %s", zoneCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallRule.Destination.MatchingTargetType = "OBJECT"
+							unifiFirewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV6Object.ID
+							unifiFirewallRule.Destination.MatchingTarget = "IP"
+							unifiFirewallRule.Destination.PortMatchingType = "OBJECT"
+							unifiFirewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID
+							unifiFirewallRule.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall rule from zone  %s to %s: %+v", zoneCRDs.Items[i].Name, firewallGroup.Name, firewallRule))
-							pretty, _ := json.MarshalIndent(firewallRule, "", "  ")
+							log.Info(fmt.Sprintf("Trying to create firewall rule from zone  %s to %s: %+v", zoneCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallRule))
+							pretty, _ := json.MarshalIndent(unifiFirewallRule, "", "  ")
 							log.Info(string(pretty))
-							_, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &firewallRule)
+							updatedRule, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallRule)
 							if err != nil {
 								log.Error(err, "Could not create firewall policy")
+								return ctrl.Result{}, err
+							}
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].UdpIpv6ID = updatedRule.ID
+							if err := r.Status().Update(ctx, &firewallRule); err != nil {
 								return ctrl.Result{}, err
 							}
 
@@ -439,36 +575,54 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if i, found := networkCRDNames[namespace+"/"+networkEntry.Name]; found {
 			log.Info(fmt.Sprintf("Creating firewallrules for %s", networkCRDs.Items[i].Name))
 			for _, firewallGroup := range myFirewallGroups {
+				index, found := firewallruleindex["network:"+networkCRDs.Items[i].Name+"/"+firewallGroup.Name]
+				if !found {
+					firewallRuleEntry := unifiv1beta1.UnifiFirewallRuleEntry{
+						From:      "zone:" + networkCRDs.Items[i].Name,
+						To:        firewallGroup.Name,
+						TcpIpv4ID: "",
+						UdpIpv4ID: "",
+						TcpIpv6ID: "",
+						UdpIpv6ID: "",
+					}
+					firewallRule.Status.ResourcesManaged.UnifiFirewallRules = append(firewallRule.Status.ResourcesManaged.UnifiFirewallRules, firewallRuleEntry)
+					index = nextIndex
+					nextIndex = nextIndex + 1
+				}
 				if len(firewallGroup.Status.ResolvedIPV4Addresses) > 0 {
 					if len(firewallGroup.Status.ResolvedTCPPorts) > 0 {
 						rulename := "k8s-fw-" + firewallRule.Name + "-" + networkCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv4-tcp"
 						if _, found := unifiFirewallruleNames[rulename]; !found {
 							log.Info(fmt.Sprintf("Creating ipv4 tcp firewallrule for %s to %s: %s", networkCRDs.Items[i].Name, firewallGroup.Name, rulename))
-							firewallRule := fillDefaultRule()
-							firewallRule.Name = rulename
-							firewallRule.Source.NetworkIDs = []string{networkCRDs.Items[i].Spec.ID}
-							firewallRule.Source.PortMatchingType = "ANY"
-							firewallRule.Source.ZoneID = networkCRDs.Items[i].Status.FirewallZoneID
-							firewallRule.Source.MatchingTarget = "NETWORK"
-							firewallRule.Protocol = "tcp"
-							firewallRule.IPVersion = "IPV4"
-							firewallRule.Description = fmt.Sprintf("Allow tcp IPV4 from %s to %s", networkCRDs.Items[i].Name, firewallGroup.Name)
-							firewallRule.Destination.MatchingTargetType = "OBJECT"
-							firewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV4Object.ID
-							firewallRule.Destination.MatchingTarget = "IP"
-							firewallRule.Destination.PortMatchingType = "OBJECT"
-							firewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID
-							firewallRule.Destination.ZoneID = kubernetesZoneID
+							unifiFirewallRule := fillDefaultRule()
+							unifiFirewallRule.Name = rulename
+							unifiFirewallRule.Source.NetworkIDs = []string{networkCRDs.Items[i].Spec.ID}
+							unifiFirewallRule.Source.PortMatchingType = "ANY"
+							unifiFirewallRule.Source.ZoneID = networkCRDs.Items[i].Status.FirewallZoneID
+							unifiFirewallRule.Source.MatchingTarget = "NETWORK"
+							unifiFirewallRule.Protocol = "tcp"
+							unifiFirewallRule.IPVersion = "IPV4"
+							unifiFirewallRule.Description = fmt.Sprintf("Allow tcp IPV4 from %s to %s", networkCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallRule.Destination.MatchingTargetType = "OBJECT"
+							unifiFirewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV4Object.ID
+							unifiFirewallRule.Destination.MatchingTarget = "IP"
+							unifiFirewallRule.Destination.PortMatchingType = "OBJECT"
+							unifiFirewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID
+							unifiFirewallRule.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall rule from network  %s to %s: %+v", networkCRDs.Items[i].Name, firewallGroup.Name, firewallRule))
-							pretty, _ := json.MarshalIndent(firewallRule, "", "  ")
+							log.Info(fmt.Sprintf("Trying to create firewall rule from network  %s to %s: %+v", networkCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallRule))
+							pretty, _ := json.MarshalIndent(unifiFirewallRule, "", "  ")
 							log.Info(string(pretty))
-							_, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &firewallRule)
+							updatedRule, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallRule)
 							if err != nil {
 								log.Error(err, "Could not create firewall policy")
 								return ctrl.Result{}, err
 							}
 
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].TcpIpv4ID = updatedRule.ID
+							if err := r.Status().Update(ctx, &firewallRule); err != nil {
+								return ctrl.Result{}, err
+							}
 						} else {
 							log.Info(fmt.Sprintf("Firewall rule for ipv4 tcp %s to %s already exists", networkCRDs.Items[i].Name, firewallGroup.Name))
 						}
@@ -477,28 +631,32 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 						rulename := "k8s-fw-" + firewallRule.Name + "-" + networkCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv4-udp"
 						if _, found := unifiFirewallruleNames[rulename]; !found {
 							log.Info(fmt.Sprintf("Creating ipv4 udp firewallrule for %s to %s: %s", networkCRDs.Items[i].Name, firewallGroup.Name, rulename))
-							firewallRule := fillDefaultRule()
-							firewallRule.Name = rulename
-							firewallRule.Source.NetworkIDs = []string{networkCRDs.Items[i].Spec.ID}
-							firewallRule.Source.PortMatchingType = "ANY"
-							firewallRule.Source.ZoneID = networkCRDs.Items[i].Status.FirewallZoneID
-							firewallRule.Source.MatchingTarget = "NETWORK"
-							firewallRule.Protocol = "udp"
-							firewallRule.IPVersion = "IPV4"
-							firewallRule.Description = fmt.Sprintf("Allow udp IPV4 from %s to %s", networkCRDs.Items[i].Name, firewallGroup.Name)
-							firewallRule.Destination.MatchingTargetType = "OBJECT"
-							firewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV4Object.ID
-							firewallRule.Destination.MatchingTarget = "IP"
-							firewallRule.Destination.PortMatchingType = "OBJECT"
-							firewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID
-							firewallRule.Destination.ZoneID = kubernetesZoneID
+							unifiFirewallRule := fillDefaultRule()
+							unifiFirewallRule.Name = rulename
+							unifiFirewallRule.Source.NetworkIDs = []string{networkCRDs.Items[i].Spec.ID}
+							unifiFirewallRule.Source.PortMatchingType = "ANY"
+							unifiFirewallRule.Source.ZoneID = networkCRDs.Items[i].Status.FirewallZoneID
+							unifiFirewallRule.Source.MatchingTarget = "NETWORK"
+							unifiFirewallRule.Protocol = "udp"
+							unifiFirewallRule.IPVersion = "IPV4"
+							unifiFirewallRule.Description = fmt.Sprintf("Allow udp IPV4 from %s to %s", networkCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallRule.Destination.MatchingTargetType = "OBJECT"
+							unifiFirewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV4Object.ID
+							unifiFirewallRule.Destination.MatchingTarget = "IP"
+							unifiFirewallRule.Destination.PortMatchingType = "OBJECT"
+							unifiFirewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID
+							unifiFirewallRule.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall rule from network  %s to %s: %+v", networkCRDs.Items[i].Name, firewallGroup.Name, firewallRule))
-							pretty, _ := json.MarshalIndent(firewallRule, "", "  ")
+							log.Info(fmt.Sprintf("Trying to create firewall rule from network  %s to %s: %+v", networkCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallRule))
+							pretty, _ := json.MarshalIndent(unifiFirewallRule, "", "  ")
 							log.Info(string(pretty))
-							_, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &firewallRule)
+							updatedRule, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallRule)
 							if err != nil {
 								log.Error(err, "Could not create firewall policy")
+								return ctrl.Result{}, err
+							}
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].UdpIpv4ID = updatedRule.ID
+							if err := r.Status().Update(ctx, &firewallRule); err != nil {
 								return ctrl.Result{}, err
 							}
 
@@ -512,28 +670,32 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 						rulename := "k8s-fw-" + firewallRule.Name + "-" + networkCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv6-tcp"
 						if _, found := unifiFirewallruleNames[rulename]; !found {
 							log.Info(fmt.Sprintf("Creating ipv6 tcp firewallrule for %s to %s: %s", networkCRDs.Items[i].Name, firewallGroup.Name, rulename))
-							firewallRule := fillDefaultRule()
-							firewallRule.Name = rulename
-							firewallRule.Source.NetworkIDs = []string{networkCRDs.Items[i].Spec.ID}
-							firewallRule.Source.PortMatchingType = "ANY"
-							firewallRule.Source.ZoneID = networkCRDs.Items[i].Status.FirewallZoneID
-							firewallRule.Source.MatchingTarget = "NETWORK"
-							firewallRule.Protocol = "tcp"
-							firewallRule.IPVersion = "IPV6"
-							firewallRule.Description = fmt.Sprintf("Allow tcp IPV6 from %s to %s", networkCRDs.Items[i].Name, firewallGroup.Name)
-							firewallRule.Destination.MatchingTargetType = "OBJECT"
-							firewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV6Object.ID
-							firewallRule.Destination.MatchingTarget = "IP"
-							firewallRule.Destination.PortMatchingType = "OBJECT"
-							firewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID
-							firewallRule.Destination.ZoneID = kubernetesZoneID
+							unifiFirewallRule := fillDefaultRule()
+							unifiFirewallRule.Name = rulename
+							unifiFirewallRule.Source.NetworkIDs = []string{networkCRDs.Items[i].Spec.ID}
+							unifiFirewallRule.Source.PortMatchingType = "ANY"
+							unifiFirewallRule.Source.ZoneID = networkCRDs.Items[i].Status.FirewallZoneID
+							unifiFirewallRule.Source.MatchingTarget = "NETWORK"
+							unifiFirewallRule.Protocol = "tcp"
+							unifiFirewallRule.IPVersion = "IPV6"
+							unifiFirewallRule.Description = fmt.Sprintf("Allow tcp IPV6 from %s to %s", networkCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallRule.Destination.MatchingTargetType = "OBJECT"
+							unifiFirewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV6Object.ID
+							unifiFirewallRule.Destination.MatchingTarget = "IP"
+							unifiFirewallRule.Destination.PortMatchingType = "OBJECT"
+							unifiFirewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID
+							unifiFirewallRule.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall rule from network  %s to %s: %+v", networkCRDs.Items[i].Name, firewallGroup.Name, firewallRule))
-							pretty, _ := json.MarshalIndent(firewallRule, "", "  ")
+							log.Info(fmt.Sprintf("Trying to create firewall rule from network  %s to %s: %+v", networkCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallRule))
+							pretty, _ := json.MarshalIndent(unifiFirewallRule, "", "  ")
 							log.Info(string(pretty))
-							_, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &firewallRule)
+							updatedRule, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallRule)
 							if err != nil {
 								log.Error(err, "Could not create firewall policy")
+								return ctrl.Result{}, err
+							}
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].TcpIpv6ID = updatedRule.ID
+							if err := r.Status().Update(ctx, &firewallRule); err != nil {
 								return ctrl.Result{}, err
 							}
 
@@ -545,28 +707,32 @@ func (r *FirewallRuleReconciler) Reconcile(ctx context.Context, req ctrl.Request
 						rulename := "k8s-fw-" + firewallRule.Name + "-" + networkCRDs.Items[i].Name + "-" + firewallGroup.Name + "-ipv6-udp"
 						if _, found := unifiFirewallruleNames[rulename]; !found {
 							log.Info(fmt.Sprintf("Creating ipv6 udp firewallrule for %s to %s: %s", networkCRDs.Items[i].Name, firewallGroup.Name, rulename))
-							firewallRule := fillDefaultRule()
-							firewallRule.Name = rulename
-							firewallRule.Source.NetworkIDs = []string{networkCRDs.Items[i].Spec.ID}
-							firewallRule.Source.PortMatchingType = "ANY"
-							firewallRule.Source.ZoneID = networkCRDs.Items[i].Status.FirewallZoneID
-							firewallRule.Source.MatchingTarget = "NETWORK"
-							firewallRule.Protocol = "udp"
-							firewallRule.IPVersion = "IPV6"
-							firewallRule.Description = fmt.Sprintf("Allow udp IPV6 from %s to %s", networkCRDs.Items[i].Name, firewallGroup.Name)
-							firewallRule.Destination.MatchingTargetType = "OBJECT"
-							firewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV6Object.ID
-							firewallRule.Destination.MatchingTarget = "IP"
-							firewallRule.Destination.PortMatchingType = "OBJECT"
-							firewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID
-							firewallRule.Destination.ZoneID = kubernetesZoneID
+							unifiFirewallRule := fillDefaultRule()
+							unifiFirewallRule.Name = rulename
+							unifiFirewallRule.Source.NetworkIDs = []string{networkCRDs.Items[i].Spec.ID}
+							unifiFirewallRule.Source.PortMatchingType = "ANY"
+							unifiFirewallRule.Source.ZoneID = networkCRDs.Items[i].Status.FirewallZoneID
+							unifiFirewallRule.Source.MatchingTarget = "NETWORK"
+							unifiFirewallRule.Protocol = "udp"
+							unifiFirewallRule.IPVersion = "IPV6"
+							unifiFirewallRule.Description = fmt.Sprintf("Allow udp IPV6 from %s to %s", networkCRDs.Items[i].Name, firewallGroup.Name)
+							unifiFirewallRule.Destination.MatchingTargetType = "OBJECT"
+							unifiFirewallRule.Destination.IPGroupID = firewallGroup.Status.ResourcesManaged.IPV6Object.ID
+							unifiFirewallRule.Destination.MatchingTarget = "IP"
+							unifiFirewallRule.Destination.PortMatchingType = "OBJECT"
+							unifiFirewallRule.Destination.PortGroupID = firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID
+							unifiFirewallRule.Destination.ZoneID = kubernetesZoneID
 
-							log.Info(fmt.Sprintf("Trying to create firewall rule from network  %s to %s: %+v", networkCRDs.Items[i].Name, firewallGroup.Name, firewallRule))
-							pretty, _ := json.MarshalIndent(firewallRule, "", "  ")
+							log.Info(fmt.Sprintf("Trying to create firewall rule from network  %s to %s: %+v", networkCRDs.Items[i].Name, firewallGroup.Name, unifiFirewallRule))
+							pretty, _ := json.MarshalIndent(unifiFirewallRule, "", "  ")
 							log.Info(string(pretty))
-							_, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &firewallRule)
+							updatedRule, err := r.UnifiClient.Client.CreateFirewallPolicy(context.Background(), r.UnifiClient.SiteID, &unifiFirewallRule)
 							if err != nil {
 								log.Error(err, "Could not create firewall policy")
+								return ctrl.Result{}, err
+							}
+							firewallRule.Status.ResourcesManaged.UnifiFirewallRules[index].UdpIpv6ID = updatedRule.ID
+							if err := r.Status().Update(ctx, &firewallRule); err != nil {
 								return ctrl.Result{}, err
 							}
 

@@ -97,6 +97,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 			log.Info("Running finalizer logic for FirewallGroup", "name", firewallGroup.Name)
 
 			if len(firewallGroup.Status.ResourcesManaged.IPV4Object.ID) > 0 {
+				log.Info(fmt.Sprintf("Trying to delete ipv4 object %s", firewallGroup.Status.ResourcesManaged.IPV4Object.ID))
 				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewallGroup.Status.ResourcesManaged.IPV4Object.ID)
 				if err != nil {
 					msg := strings.ToLower(err.Error())
@@ -123,6 +124,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				}
 			}
 			if len(firewallGroup.Status.ResourcesManaged.IPV6Object.ID) > 0 {
+				log.Info(fmt.Sprintf("Trying to delete ipv6 object %s", firewallGroup.Status.ResourcesManaged.IPV6Object.ID))
 				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewallGroup.Status.ResourcesManaged.IPV6Object.ID)
 				if err != nil {
 					msg := strings.ToLower(err.Error())
@@ -149,6 +151,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				}
 			}
 			if len(firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID) > 0 {
+				log.Info(fmt.Sprintf("Trying to delete tcp object %s", firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID))
 				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID)
 				if err != nil {
 					msg := strings.ToLower(err.Error())
@@ -175,6 +178,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				}
 			}
 			if len(firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID) > 0 {
+				log.Info(fmt.Sprintf("Trying to delete udp object %s", firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID))
 				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID)
 				if err != nil {
 					msg := strings.ToLower(err.Error())
