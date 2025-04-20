@@ -110,14 +110,23 @@ spec:
                       properties:
                         from:
                           type: string
-                        rule_id:
+                        tcpipv4_id:
+                          type: string
+                        tcpipv6_id:
                           type: string
                         to:
                           type: string
+                        udpipv4_id:
+                          type: string
+                        udpipv6_id:
+                          type: string
                       required:
                       - from
-                      - rule_id
+                      - tcpipv4_id
+                      - tcpipv6_id
                       - to
+                      - udpipv4_id
+                      - udpipv6_id
                       type: object
                     type: array
                 type: object

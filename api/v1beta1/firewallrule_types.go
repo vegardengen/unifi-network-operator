@@ -40,9 +40,6 @@ import (
 //}
 
 type FirewallRuleSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	Name                               string              `json:"name"`
 	Source                             FirewallSource      `json:"source"`
 	Destination                        FirewallDestination `json:"destination"`
@@ -52,9 +49,6 @@ type FirewallRuleSpec struct {
 
 // FirewallRuleStatus defines the observed state of FirewallRule.
 type FirewallRuleStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	ResourcesManaged *FirewallRuleResourcesManaged `json:"resources_managed,omitempty"`
 }
 
@@ -64,9 +58,12 @@ type FirewallRuleResourcesManaged struct {
 }
 
 type UnifiFirewallRuleEntry struct {
-	From   string `json:"from"`
-	To     string `json:"to"`
-	RuleID string `json:"rule_id"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	TcpIpv4ID string `json:"tcpipv4_id"`
+	UdpIpv4ID string `json:"udpipv4_id"`
+	TcpIpv6ID string `json:"tcpipv6_id"`
+	UdpIpv6ID string `json:"udpipv6_id"`
 }
 
 // +kubebuilder:object:root=true
