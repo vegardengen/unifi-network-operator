@@ -242,6 +242,15 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "FirewallPolicy")
 		os.Exit(1)
 	}
+	if err = (&controller.PortForwardReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		UnifiClient:  unifiClient,
+		ConfigLoader: configLoader,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PortForward")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	if err = (&controller.FirewallGroupReconciler{
