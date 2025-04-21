@@ -20,6 +20,7 @@ rules:
   - firewallpolicies
   - firewallzones
   - networkconfigurations
+  - portforwards
   verbs:
   - create
   - delete
@@ -35,6 +36,7 @@ rules:
   - firewallpolicies/finalizers
   - firewallzones/finalizers
   - networkconfigurations/finalizers
+  - portforwards/finalizers
   verbs:
   - update
 - apiGroups:
@@ -44,6 +46,7 @@ rules:
   - firewallpolicies/status
   - firewallzones/status
   - networkconfigurations/status
+  - portforwards/status
   verbs:
   - get
   - patch

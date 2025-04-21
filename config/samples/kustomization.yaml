@@ -3,4 +3,5 @@ resources:
 - unifi_v1beta1_networkconfiguration.yaml
 - unifi_v1beta1_firewallzone.yaml
 - unifi_v1beta1_firewallrule.yaml
+- unifi_v1beta1_portforward.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
