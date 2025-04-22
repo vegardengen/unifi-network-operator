@@ -119,10 +119,25 @@ func (r *PortForwardReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		portforwardname := "k8s-forward-" + svc.Name + "-" + port.Name
 		log.Info(fmt.Sprintf("Should handle %s", portforwardname))
-		_, err := r.UnifiClient.Client.CreatePortForward(context.Background(), r.UnifiClient.SiteID, &goUnifi.PortForward{Name: portforwardname, PfwdInterface: "wan", Src: "any", Log: true, DestinationIPs: []goUnifi.PortForwardDestinationIPs{}, Enabled: true, Fwd: ip, DestinationIP: "any", Proto: "tcp", DstPort: fmt.Sprintf("%d", portMap[port.Name]), SiteID: r.UnifiClient.SiteID, FwdPort: fmt.Sprintf("%d", port.Port)})
-		if err != nil {
-			log.Error(err, "Portforward could not be created")
-			return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+		if portforwardindex, found := portforwardnames[portforwardname]; found {
+			if portforwards[portforwardindex].DstPort == fmt.Sprintf("%d", portMap[port.Name]) && portforwards[portforwardindex].Fwd == ip && portforwards[portforwardindex].FwdPort == fmt.Sprintf("%d", port.Port) {
+				log.Info("Portforward already exists and is correct")
+			} else {
+				log.Info("Exists, but need to update")
+				portforwards[portforwardindex].DstPort = fmt.Sprintf("%d", portMap[port.Name])
+				portforwards[portforwardindex].FwdPort = fmt.Sprintf("%d", port.Port)
+				portforwards[portforwardindex].Fwd = ip
+				if _, err := r.UnifiClient.Client.UpdatePortForward(context.Background(), r.UnifiClient.SiteID, &portforwards[portforwardindex]); err != nil {
+					log.Error(err, fmt.Sprintf("Failed to update portforward %s", portforwardname))
+					return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+				}
+			}
+		} else {
+			_, err := r.UnifiClient.Client.CreatePortForward(context.Background(), r.UnifiClient.SiteID, &goUnifi.PortForward{Name: portforwardname, PfwdInterface: "wan", Src: "any", Log: true, DestinationIPs: []goUnifi.PortForwardDestinationIPs{}, Enabled: true, Fwd: ip, DestinationIP: "any", Proto: "tcp", DstPort: fmt.Sprintf("%d", portMap[port.Name]), SiteID: r.UnifiClient.SiteID, FwdPort: fmt.Sprintf("%d", port.Port)})
+			if err != nil {
+				log.Error(err, "Portforward could not be created")
+				return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+			}
 		}
 
 	}
