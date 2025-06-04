@@ -373,7 +373,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 		if firewall_group.Name == ipv4_name {
 			if len(ipv4) == 0 {
 				log.Info(fmt.Sprintf("Delete %s", ipv4_name))
-				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewall_group.ID)
+				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewallGroup.Status.ResourcesManaged.IPV4Object.ID)
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
@@ -413,7 +413,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 		if firewall_group.Name == ipv6_name {
 			if len(ipv6) == 0 {
 				log.Info(fmt.Sprintf("Delete %s", ipv6_name))
-				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewall_group.ID)
+				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewallGroup.Status.ResourcesManaged.IPV6Object.ID)
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
@@ -453,7 +453,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 		if firewall_group.Name == tcpports_name {
 			if len(tcpports) == 0 {
 				log.Info(fmt.Sprintf("Delete %s", tcpports_name))
-				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewall_group.ID)
+				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID)
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
@@ -493,7 +493,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 		if firewall_group.Name == udpports_name {
 			if len(udpports) == 0 {
 				log.Info(fmt.Sprintf("Delete %s", udpports_name))
-				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewall_group.ID)
+				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID)
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
