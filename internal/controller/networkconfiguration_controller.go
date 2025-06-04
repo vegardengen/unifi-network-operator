@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -111,10 +112,12 @@ func (r *NetworkconfigurationReconciler) Reconcile(ctx context.Context, req ctrl
 					Vlan:                      int64(unifinetwork.VLAN),
 					VlanEnabled:               unifinetwork.VLANEnabled,
 				}
-				networkObj.Spec = networkSpec
-				err := r.Update(ctx, &networkObj)
-				if err != nil {
-					return ctrl.Result{}, err
+				if !reflect.DeepEqual(networkObj.Spec, networkSpec) {
+					networkObj.Spec = networkSpec
+					err := r.Update(ctx, &networkObj)
+					if err != nil {
+						return ctrl.Result{}, err
+					}
 				}
 			}
 		}
@@ -210,14 +213,19 @@ func (r *NetworkconfigurationReconciler) Reconcile(ctx context.Context, req ctrl
 			} else {
 				for _, networkCRD := range networkCRDs.Items {
 					if networkCRD.Spec.Name == unifinetwork.Name {
-						networkCRD.Spec = networkSpec
-					}
-					err := r.Update(ctx, &networkCRD)
-					if err != nil {
-						return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
-					}
-					if err = r.Status().Update(ctx, &networkCRD); err != nil {
-						return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+						if !reflect.DeepEqual(networkCRD.Spec, networkSpec) {
+							networkCRD.Spec = networkSpec
+							err := r.Update(ctx, &networkCRD)
+							if err != nil {
+								return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+							}
+						}
+						if !reflect.DeepEqual(networkCRD.Status, networkStatus) {
+							networkCRD.Status = networkStatus
+							if err = r.Status().Update(ctx, &networkCRD); err != nil {
+								return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+							}
+						}
 					}
 				}
 			}
