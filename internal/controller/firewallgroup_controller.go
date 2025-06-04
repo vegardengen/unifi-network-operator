@@ -372,7 +372,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 	for _, firewall_group := range firewall_groups {
 		if firewall_group.Name == ipv4_name {
 			if len(ipv4) == 0 {
-				log.Info(fmt.Sprintf("Delete %s", ipv4_name))
+				log.Info(fmt.Sprintf("Delete %s: %s", ipv4_name, firewallGroup.Status.ResourcesManaged.IPV4Object.ID))
 				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewallGroup.Status.ResourcesManaged.IPV4Object.ID)
 				if err != nil {
 					msg := strings.ToLower(err.Error())
@@ -389,7 +389,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 						firewallGroup.Status.ResourcesManaged.IPV4Object.Name = ""
 						firewallGroup.Status.ResourcesManaged.IPV4Object.ID = ""
 					} else {
-						log.Error(err, "Could not delete firewall group")
+						log.Error(err, "Could not delete firewall group - but tried the new")
 						return reconcile.Result{}, err
 					}
 				} else {
