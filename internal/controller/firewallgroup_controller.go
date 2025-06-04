@@ -372,12 +372,12 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 	for _, firewall_group := range firewall_groups {
 		if firewall_group.Name == ipv4_name {
 			if len(ipv4) == 0 {
-				log.Info(fmt.Sprintf("Delete %s", ipv4_name))
-				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewall_group.ID)
+				log.Info(fmt.Sprintf("Delete %s: %s", ipv4_name, firewallGroup.Status.ResourcesManaged.IPV4Object.ID))
+				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewallGroup.Status.ResourcesManaged.IPV4Object.ID)
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
-					if strings.Contains(msg, "api.err.objectreferredby") {
+					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg,"invalid character") {
 						log.Info("Firewall group is in use. Invoking workaround...!")
 						firewall_group.GroupMembers = []string{"127.0.0.1"}
 						firewall_group.Name = firewall_group.Name + "-deleted"
@@ -413,11 +413,11 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 		if firewall_group.Name == ipv6_name {
 			if len(ipv6) == 0 {
 				log.Info(fmt.Sprintf("Delete %s", ipv6_name))
-				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewall_group.ID)
+				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewallGroup.Status.ResourcesManaged.IPV6Object.ID)
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
-					if strings.Contains(msg, "api.err.objectreferredby") {
+					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg,"invalid character") {
 						log.Info("Firewall group is in use. Invoking workaround...!")
 						firewall_group.GroupMembers = []string{"::1"}
 						firewall_group.Name = firewall_group.Name + "-deleted"
@@ -453,11 +453,11 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 		if firewall_group.Name == tcpports_name {
 			if len(tcpports) == 0 {
 				log.Info(fmt.Sprintf("Delete %s", tcpports_name))
-				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewall_group.ID)
+				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewallGroup.Status.ResourcesManaged.TCPPortsObject.ID)
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
-					if strings.Contains(msg, "api.err.objectreferredby") {
+					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg,"invalid character") {
 						log.Info("Firewall group is in use. Invoking workaround...!")
 						firewall_group.GroupMembers = []string{"0"}
 						firewall_group.Name = firewall_group.Name + "-deleted"
@@ -493,11 +493,11 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 		if firewall_group.Name == udpports_name {
 			if len(udpports) == 0 {
 				log.Info(fmt.Sprintf("Delete %s", udpports_name))
-				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewall_group.ID)
+				err := r.UnifiClient.Client.DeleteFirewallGroup(context.Background(), r.UnifiClient.SiteID, firewallGroup.Status.ResourcesManaged.UDPPortsObject.ID)
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
-					if strings.Contains(msg, "api.err.objectreferredby") {
+					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg,"invalid character") {
 						log.Info("Firewall group is in use. Invoking workaround...!")
 						firewall_group.GroupMembers = []string{"127.0.0.1"}
 						firewall_group.Name = firewall_group.Name + "-deleted"
