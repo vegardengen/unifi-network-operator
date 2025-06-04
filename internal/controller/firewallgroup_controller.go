@@ -377,7 +377,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
-					if strings.Contains(msg, "api.err.objectreferredby") {
+					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg,"invalid character") {
 						log.Info("Firewall group is in use. Invoking workaround...!")
 						firewall_group.GroupMembers = []string{"127.0.0.1"}
 						firewall_group.Name = firewall_group.Name + "-deleted"
@@ -389,7 +389,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 						firewallGroup.Status.ResourcesManaged.IPV4Object.Name = ""
 						firewallGroup.Status.ResourcesManaged.IPV4Object.ID = ""
 					} else {
-						log.Error(err, "Could not delete firewall group - but tried the new")
+						log.Error(err, "Could not delete firewall group")
 						return reconcile.Result{}, err
 					}
 				} else {
@@ -417,7 +417,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
-					if strings.Contains(msg, "api.err.objectreferredby") {
+					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg,"invalid character") {
 						log.Info("Firewall group is in use. Invoking workaround...!")
 						firewall_group.GroupMembers = []string{"::1"}
 						firewall_group.Name = firewall_group.Name + "-deleted"
@@ -457,7 +457,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
-					if strings.Contains(msg, "api.err.objectreferredby") {
+					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg,"invalid character") {
 						log.Info("Firewall group is in use. Invoking workaround...!")
 						firewall_group.GroupMembers = []string{"0"}
 						firewall_group.Name = firewall_group.Name + "-deleted"
@@ -497,7 +497,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
-					if strings.Contains(msg, "api.err.objectreferredby") {
+					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg,"invalid character") {
 						log.Info("Firewall group is in use. Invoking workaround...!")
 						firewall_group.GroupMembers = []string{"127.0.0.1"}
 						firewall_group.Name = firewall_group.Name + "-deleted"
