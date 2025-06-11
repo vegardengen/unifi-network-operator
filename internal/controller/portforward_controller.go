@@ -133,7 +133,7 @@ func (r *PortForwardReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 				}
 			}
 		} else {
-			_, err := r.UnifiClient.Client.CreatePortForward(context.Background(), r.UnifiClient.SiteID, &goUnifi.PortForward{Name: portforwardname, PfwdInterface: "wan", Src: "any", Log: true, DestinationIPs: []goUnifi.PortForwardDestinationIPs{}, Enabled: true, Fwd: ip, DestinationIP: "any", Proto: "tcp", DstPort: fmt.Sprintf("%d", portMap[port.Name]), SiteID: r.UnifiClient.SiteID, FwdPort: fmt.Sprintf("%d", port.Port)})
+			_, err := r.UnifiClient.Client.CreatePortForward(context.Background(), r.UnifiClient.SiteID, &goUnifi.PortForward{Name: portforwardname, PfwdInterface: "wan", Src: "any", Log: false, DestinationIPs: []goUnifi.PortForwardDestinationIPs{}, Enabled: true, Fwd: ip, DestinationIP: "any", Proto: "tcp", DstPort: fmt.Sprintf("%d", portMap[port.Name]), SiteID: r.UnifiClient.SiteID, FwdPort: fmt.Sprintf("%d", port.Port)})
 			if err != nil {
 				log.Error(err, "Portforward could not be created")
 				return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
