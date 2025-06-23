@@ -1,4 +1,4 @@
-module gitea.engen.priv.no/vegardengen/unifi-network-operator
+module gitea.engen.priv.no/klauvsteinen/unifi-network-operator
 
 go 1.24.0
 
