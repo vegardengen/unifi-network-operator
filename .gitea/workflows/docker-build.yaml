@@ -7,6 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: golang:1.24
     steps:
        - name: Install node and go
          run: apk add nodejs go
