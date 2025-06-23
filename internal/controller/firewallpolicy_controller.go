@@ -33,10 +33,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	goUnifi "github.com/vegardengen/go-unifi/unifi"
-	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
-	"github.com/vegardengen/unifi-network-operator/internal/config"
-	"github.com/vegardengen/unifi-network-operator/internal/unifi"
+	goUnifi "gitea.engen.priv.no/klauvsteinen/go-unifi/unifi"
+	unifiv1beta1 "gitea.engen.priv.no/klauvsteinen/unifi-network-operator/api/v1beta1"
+	"gitea.engen.priv.no/klauvsteinen/unifi-network-operator/internal/config"
+	"gitea.engen.priv.no/klauvsteinen/unifi-network-operator/internal/unifi"
 )
 
 // FirewallPolicyReconciler reconciles a FirewallPolicy object

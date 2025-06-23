@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vegardengen/go-unifi/unifi"
+	"gitea.engen.priv.no/klauvsteinen/go-unifi/unifi"
 )
 
 type UnifiClient struct {
