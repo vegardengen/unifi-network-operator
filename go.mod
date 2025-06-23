@@ -1,4 +1,4 @@
-module github.com/vegardengen/unifi-network-operator
+module repository.engen.priv.no/vegardengen/unifi-network-operator
 
 go 1.24.0
 
