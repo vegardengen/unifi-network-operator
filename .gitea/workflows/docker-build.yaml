@@ -12,6 +12,8 @@ jobs:
          run: apk add nodejs go
        - name: Check out repository code
          uses: actions/checkout@v4
+       - name: ssh repo
+         run: git config --global url.git@gitea-ssh.engen.priv.no:.insteadOf https://gitea.engen.priv.no/
        - name: Build
          run: go build cmd/main.go
         
