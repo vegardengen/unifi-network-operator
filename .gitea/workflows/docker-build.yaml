@@ -10,7 +10,7 @@ jobs:
     container: golang:1.24
     steps:
        - name: Install node and go
-         run: apt install nodejs
+         run: apt update && apt install nodejs
        - name: Check out repository code
          uses: actions/checkout@v4
        - name: ssh repo
