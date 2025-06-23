@@ -1,4 +1,4 @@
-module repository.engen.priv.no/vegardengen/unifi-network-operator
+module gitea.engen.priv.no/vegardengen/unifi-network-operator
 
 go 1.24.0
 
@@ -9,7 +9,7 @@ godebug default=go1.23
 require (
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
-	github.com/vegardengen/go-unifi v0.0.1-alpha25
+	gitea.engen.priv.no/klauvsteinen/go-unifi v0.0.1-alpha26
 	k8s.io/api v0.32.1
 	k8s.io/apimachinery v0.32.1
 	k8s.io/client-go v0.32.1
