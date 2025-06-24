@@ -23,4 +23,4 @@ jobs:
        - name: Install ko
          run: go install github.com/google/ko@latest
        - name: Build
-         run: PATH=~/go/bin ko publish ./cmd --tags latest --bare
+         run: PATH=~/go/bin:$PATH ko publish ./cmd --tags latest --bare
