@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: catthehacker/ubuntu:act-22.04
+    container: golang:1.24-bookworm
     steps:
       - name: Setup SSH
         run: |
@@ -15,7 +15,7 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan gitea-ssh.engen.priv.no >> ~/.ssh/known_hosts
       - name: Install node and go
-        run: apt update && apt -y install nodejs go
+        run: apt update && apt -y install nodejs
       - name: Check out repository code
         uses: actions/checkout@v4
       - name: ssh repo
@@ -27,5 +27,5 @@ jobs:
           KO_DOCKER_REPO: registry.engen.priv.no/unifi-network-operator-controller
           PATH: ~/go/bin:$PATH
         run: |
-          TAG=$(git describe --tags --abbrev=0)
+          TAG=${GITHUB_REF#refs/tags/}
           ~/go/bin/ko publish ./cmd --tags "$TAG,latest"
