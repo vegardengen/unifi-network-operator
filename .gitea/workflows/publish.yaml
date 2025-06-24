@@ -23,11 +23,10 @@ jobs:
       - name: Install ko
         run: go install github.com/google/ko@latest
       - name: Extract tag
-        id: get_tag
-        run: |
-          echo "tag=${GITEA_REF##refs/tags/}" >> "$GITEA_OUTPUT"
       - name: Build
         env:
           KO_DOCKER_REPO: registry.engen.priv.no/unifi-network-operator-controller
           PATH: ~/go/bin:$PATH
-        run: ~/go/bin/ko publish ./cmd --tags "${{ steps.get_tag.outputs.tag }},latest"
+        run: |
+          TAG=$(git describe --tags --abbrev=0)
+          ~/go/bin/ko publish ./cmd --tags "$TAG,latest"
