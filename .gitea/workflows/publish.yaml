@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     container: golang:1.24-bookworm
     steps:
-      - name: Install dependencies
+      #- name: Install dependencies
         # run: apt update && apt -y install openssh-client
       - name: Setup SSH
         run: |
