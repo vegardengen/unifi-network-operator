@@ -30,6 +30,5 @@ jobs:
       - name: Build
         env:
           KO_DOCKER_REPO: registry.engen.priv.no/unifi-network-operator-controller
-          PATH: ~/go/bin:$PATH
         run: |
           ko publish ./cmd --tags "$TAG,latest"
