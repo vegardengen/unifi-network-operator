@@ -27,5 +27,4 @@ jobs:
           KO_DOCKER_REPO: registry.engen.priv.no/unifi-network-operator-controller
           PATH: ~/go/bin:$PATH
         run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          ~/go/bin/ko publish ./cmd --tags "$TAG,latest"
+          ~/go/bin/ko publish ./cmd --tags "${GITHUB_REF#refs/tags/},latest"
