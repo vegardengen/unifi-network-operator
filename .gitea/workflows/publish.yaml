@@ -31,4 +31,4 @@ jobs:
         env:
           KO_DOCKER_REPO: registry.engen.priv.no/unifi-network-operator-controller
         run: |
-          ko publish ./cmd --tags "$TAG,latest"
+          ko publish ./cmd --tags "$TAG,latest" --bare
