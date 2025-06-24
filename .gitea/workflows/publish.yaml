@@ -24,7 +24,9 @@ jobs:
         run: go install github.com/google/ko@latest
       - name: Extract tag (outside container)
         shell: bash
-        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        run: |
+          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo $TAG
       - name: Build
         env:
           KO_DOCKER_REPO: registry.engen.priv.no/unifi-network-operator-controller
