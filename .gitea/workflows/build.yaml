@@ -1,6 +1,7 @@
 name: Build project
 on:
   push:
+    branch:
 jobs:
   build:
     runs-on: ubuntu-latest
