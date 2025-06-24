@@ -8,7 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install dependencies
-        run: apt update && apt -y install openssh-client
+        # run: apt update && apt -y install openssh-client
+        run: apk add openssh-client
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
