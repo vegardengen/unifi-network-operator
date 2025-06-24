@@ -9,7 +9,7 @@ jobs:
     container: golang:1.24-bookworm
     steps:
       - name: Install dependencies
-        run: apt update && apt -y install nodejs
+        run: apt update && apt -y install nodejs bash
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
