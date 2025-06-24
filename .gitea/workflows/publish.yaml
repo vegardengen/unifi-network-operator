@@ -22,9 +22,12 @@ jobs:
         run: git config --global url.git@gitea-ssh.engen.priv.no:.insteadOf https://gitea.engen.priv.no/
       - name: Install ko
         run: go install github.com/google/ko@latest
+      - name: Extract tag (outside container)
+        shell: bash
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
       - name: Build
         env:
           KO_DOCKER_REPO: registry.engen.priv.no/unifi-network-operator-controller
           PATH: ~/go/bin:$PATH
         run: |
-          ~/go/bin/ko publish ./cmd --tags "${GITHUB_REF#refs/tags/},latest"
+          ~/go/bin/ko publish ./cmd --tags "$TAG,latest"
