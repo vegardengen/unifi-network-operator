@@ -6,28 +6,29 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: golang:1.24
+    container: golang:1.24-bookworm
     steps:
+      - name: Install dependencies
+        run: apt update && apt -y install nodejs bash
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan gitea-ssh.engen.priv.no >> ~/.ssh/known_hosts
-      - name: Install node and go
-        run: apt update && apt -y install nodejs
       - name: Check out repository code
         uses: actions/checkout@v4
       - name: ssh repo
         run: git config --global url.git@gitea-ssh.engen.priv.no:.insteadOf https://gitea.engen.priv.no/
       - name: Install ko
         run: go install github.com/google/ko@latest
-      - name: Extract tag
-        id: get_tag
+      - name: Extract tag (outside container)
+        shell: bash
         run: |
-          echo "tag=${GITEA_REF##refs/tags/}" >> "$GITEA_OUTPUT"
+          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          env
       - name: Build
         env:
           KO_DOCKER_REPO: registry.engen.priv.no/unifi-network-operator-controller
-          PATH: /go/bin:$PATH
-        run: ko publish ./cmd --tags "${{ steps.get_tag.outputs.tag }},latest"
+        run: |
+          ko publish ./cmd --tags "$TAG,latest" --bare
