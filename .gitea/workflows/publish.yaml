@@ -20,5 +20,7 @@ jobs:
          uses: actions/checkout@v4
        - name: ssh repo
          run: git config --global url.git@gitea-ssh.engen.priv.no:.insteadOf https://gitea.engen.priv.no/
+       - name: Install ko
+         run: go install github.com/google/ko@latest
        - name: Build
-         run: go build cmd/main.go
+         run: PATH=~/go/bin ko publish ./cmd --tags latest --bare
