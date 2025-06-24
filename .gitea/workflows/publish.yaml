@@ -32,4 +32,4 @@ jobs:
           KO_DOCKER_REPO: registry.engen.priv.no/unifi-network-operator-controller
           PATH: ~/go/bin:$PATH
         run: |
-          ~/go/bin/ko publish ./cmd --tags "$TAG,latest"
+          ko publish ./cmd --tags "$TAG,latest"
