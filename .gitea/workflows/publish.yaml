@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: golang:1.24-bookworm
+    container: catthehacker/ubuntu:act-22.04
     steps:
       - name: Setup SSH
         run: |
