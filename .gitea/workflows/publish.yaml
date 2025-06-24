@@ -23,6 +23,7 @@ jobs:
       - name: Install ko
         run: go install github.com/google/ko@latest
       - name: Build
+        shell: bash
         env:
           KO_DOCKER_REPO: registry.engen.priv.no/unifi-network-operator-controller
           PATH: ~/go/bin:$PATH
