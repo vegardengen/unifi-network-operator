@@ -22,7 +22,6 @@ jobs:
         run: git config --global url.git@gitea-ssh.engen.priv.no:.insteadOf https://gitea.engen.priv.no/
       - name: Install ko
         run: go install github.com/google/ko@latest
-      - name: Extract tag
       - name: Build
         env:
           KO_DOCKER_REPO: registry.engen.priv.no/unifi-network-operator-controller
