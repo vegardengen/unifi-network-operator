@@ -22,3 +22,5 @@ jobs:
          run: git config --global url.git@gitea-ssh.engen.priv.no:.insteadOf https://gitea.engen.priv.no/
        - name: Build
          run: go build cmd/main.go
+       - name: Build manifest
+         run: make build-installer
