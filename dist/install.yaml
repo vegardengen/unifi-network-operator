@@ -915,7 +915,7 @@ spec:
             secretKeyRef:
               key: UNIFI_PASSWORD
               name: unifi-configuration
-        image: registry.engen.priv.no/unifi-network-operator-controller:latest
+        image: gitea.engen.priv.no/klauvsteinen/unifi-network-operator-controller:latest
         livenessProbe:
           httpGet:
             path: /healthz

@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG ?= registry.engen.priv.no/unifi-network-operator-controller:latest
+IMG ?= gitea.engen.priv.no/klauvsteinen/unifi-network-operator-controller:latest
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -8,7 +8,7 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-export KO_DOCKER_REPO=registry.engen.priv.no/unifi-network-operator-controller
+export KO_DOCKER_REPO=gitea.engen.priv.no/klauvsteinen/unifi-network-operator-controller
 
 # CONTAINER_TOOL defines the container tool to be used for building images.
 # Be aware that the target commands are only tested with Docker which is
