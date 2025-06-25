@@ -36,6 +36,6 @@ jobs:
         run: echo "${GITEA_TOKEN}" | docker login "${GITEA_REGISTRY}" --username "${GITEA_USER}" --password-stdin
       - name: Build
         env:
-          KO_DOCKER_REPO: "${GITEA_REGISTRY}/${GITEA_ORG}/unifi-network-operator-controller"
+          KO_DOCKER_REPO: ${GITEA_REGISTRY}/${GITEA_ORG}/unifi-network-operator-controller
         run: |
           ko publish ./cmd --tags "$TAG,latest" --bare
