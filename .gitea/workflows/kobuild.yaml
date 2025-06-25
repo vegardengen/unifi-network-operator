@@ -24,3 +24,5 @@ jobs:
          run: go install github.com/google/ko@latest
        - name: Build
          run: KO_DOCKER_REPO=gitea.engen.priv.no/unifi-network-operator-controller PATH=~/go/bin:$PATH ko build --local ./cmd 
+       - name: Build manifest
+         run: make build-installer
