@@ -38,3 +38,17 @@ jobs:
         run: |
           export KO_DOCKER_REPO="${GITEA_REGISTRY}/${GITEA_ORG}/unifi-network-operator-controller"
           ko publish ./cmd --tags "$TAG,latest" --bare
+      - name: Build manifest
+        run: |
+          make build-installer
+          curl -X PUT \
+          -H "Authorization: token $GITEA_TOKEN" \
+          -H "Content-Type: application/x-yaml" \
+          --data-binary @./dist/install.yaml \
+          https://gitea.engen.priv.no/api/packages/klauvsteinen/unifi-network-operator/latest/install.yaml
+          curl -X PUT \
+          -H "Authorization: token $GITEA_TOKEN" \
+          -H "Content-Type: application/x-yaml" \
+          --data-binary @./dist/install.yaml \
+          https://gitea.engen.priv.no/api/packages/klauvsteinen/unifi-network-operator/$TAG/install.yaml
+
