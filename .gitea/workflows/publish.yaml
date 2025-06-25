@@ -33,9 +33,7 @@ jobs:
           echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
           env
       - name: Docker login
-        run: |
-          run: echo "${GITEA_TOKEN}" | docker login "${GITEA_REGISTRY}" --username "${GITEA_USER}" --password-stdin
-ocker login
+        run: echo "${GITEA_TOKEN}" | docker login "${GITEA_REGISTRY}" --username "${GITEA_USER}" --password-stdin
       - name: Build
         env:
           KO_DOCKER_REPO: "{$GITEA_REGISTRY}/${GITEA_ORG}/unifi-network-operator-controller
