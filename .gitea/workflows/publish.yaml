@@ -45,10 +45,10 @@ jobs:
           -H "Authorization: token $GITEA_TOKEN" \
           -H "Content-Type: application/x-yaml" \
           --data-binary @./dist/install.yaml \
-          https://gitea.engen.priv.no/api/packages/klauvsteinen/unifi-network-operator/latest/install.yaml
+          https://gitea.engen.priv.no/api/packages/klauvsteinen/generic/unifi-network-operator/latest/install.yaml
           curl -X PUT \
           -H "Authorization: token $GITEA_TOKEN" \
           -H "Content-Type: application/x-yaml" \
           --data-binary @./dist/install.yaml \
-          https://gitea.engen.priv.no/api/packages/klauvsteinen/unifi-network-operator/$TAG/install.yaml
+          https://gitea.engen.priv.no/api/packages/klauvsteinen/generic/unifi-network-operator/$TAG/install.yaml
 
