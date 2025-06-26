@@ -8,15 +8,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: golang:1.24-bookworm
+    container: registry.engen.priv.no/gitea-build:0.1.0
     env:
       GITEA_USER: ${{ secrets.GITEAUSER }}
       GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
       GITEA_REGISTRY: gitea.engen.priv.no
       GITEA_ORG: klauvsteinen
     steps:
-      - name: Install dependencies
-        run: apt update && apt -y install nodejs bash docker.io
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -27,8 +25,6 @@ jobs:
         uses: actions/checkout@v4
       - name: ssh repo
         run: git config --global url.git@gitea-ssh.engen.priv.no:.insteadOf https://gitea.engen.priv.no/
-      - name: Install ko
-        run: go install github.com/google/ko@latest
       - name: Extract tag (outside container)
         shell: bash
         run: |
