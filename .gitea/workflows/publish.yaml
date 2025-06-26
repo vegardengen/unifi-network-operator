@@ -49,12 +49,13 @@ jobs:
           --bare
       - name: Build manifest
         run: |
-          make build-installer
+          IMB="${GITEA_REGISTRY}/${GITEA_ORG}/unifi-network-operator-controller:latest" make build-installer
           curl -X PUT \
           -H "Authorization: token $GITEA_TOKEN" \
           -H "Content-Type: application/x-yaml" \
           --data-binary @./dist/install.yaml \
           https://gitea.engen.priv.no/api/packages/klauvsteinen/generic/unifi-network-operator/latest/install.yaml
+          IMB="${GITEA_REGISTRY}/${GITEA_ORG}/unifi-network-operator-controller:$TAG" make build-installer
           curl -X PUT \
           -H "Authorization: token $GITEA_TOKEN" \
           -H "Content-Type: application/x-yaml" \
