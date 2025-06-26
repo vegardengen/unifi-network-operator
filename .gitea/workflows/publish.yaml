@@ -50,6 +50,10 @@ jobs:
       - name: Build manifest
         run: |
           make IMG="${GITEA_REGISTRY}/${GITEA_ORG}/unifi-network-operator-controller:latest" build-installer
+          curl -X DELETE \
+          -H "Authorization: token $GITEA_TOKEN" \
+          -H "Content-Type: application/x-yaml" \
+          https://gitea.engen.priv.no/api/packages/klauvsteinen/generic/unifi-network-operator/latest/install.yaml
           curl -X PUT \
           -H "Authorization: token $GITEA_TOKEN" \
           -H "Content-Type: application/x-yaml" \
