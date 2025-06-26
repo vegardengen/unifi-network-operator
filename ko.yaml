@@ -1,0 +1,7 @@
+defaultBaseImage: cgr.dev/chainguard/static:latest
+
+labels:
+  org.opencontainers.image.authors: Vegard Engen <vegard@engen.priv.no>
+  org.opencontainers.image.source: https://gitea.engen.priv.no/klauvsteinen/unifi-network-operator
+  org.opencontainers.image.vendor: Klauvsteinen
+  dev.chainguard.package.main: ""
