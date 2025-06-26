@@ -42,6 +42,7 @@ jobs:
           --image-label 'org.opencontainers.image.authors=Klauvsteinen <vegard@engen.priv.no>' \
           --image-label 'org.opencontainers.image.vendor=Klauvsteinen' \
           --image-label 'org.opencontainers.image.source=https://gitea.engen.priv.no/klauvsteinen/unifi-network-operator' \
+          --image-label 'org.opencontainers.image.url=https://gitea.engen.priv.no/klauvsteinen/unifi-network-operator' \
           --image-label 'dev.chainguard.package.main=' \
           --bare
       - name: Build manifest
