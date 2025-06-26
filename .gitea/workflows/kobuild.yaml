@@ -7,6 +7,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container: golang:1.24
+    env:
+      GITEA_USER: ${{ secrets.GITEAUSER }}
+      GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
+      GITEA_REGISTRY: gitea.engen.priv.no
+      GITEA_ORG: klauvsteinen
     steps:
       - name: Setup SSH
         run: |
