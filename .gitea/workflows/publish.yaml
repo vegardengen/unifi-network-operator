@@ -39,10 +39,10 @@ jobs:
           export KO_DOCKER_REPO="${GITEA_REGISTRY}/${GITEA_ORG}/unifi-network-operator-controller"
           ko publish ./cmd \
           --tags "$TAG,latest" \
-          --image-labels='org.opencontainers.image.authors=Klauvsteinen <vegard@engen.priv.no>' \
-          --image-labels='org.opencontainers.image.vendor=Klauvsteinen' \
-          --image-labels='org.opencontainers.image.source=https://gitea.engen.priv.no/klauvsteinen/unifi-network-operator' \
-          --image-labels='dev.chainguard.package.main=' \
+          --image-label 'org.opencontainers.image.authors=Klauvsteinen <vegard@engen.priv.no>' \
+          --image-label 'org.opencontainers.image.vendor=Klauvsteinen' \
+          --image-label 'org.opencontainers.image.source=https://gitea.engen.priv.no/klauvsteinen/unifi-network-operator' \
+          --image-label 'dev.chainguard.package.main=' \
           --bare
       - name: Build manifest
         run: |
