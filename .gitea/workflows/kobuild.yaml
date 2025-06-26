@@ -22,7 +22,28 @@ jobs:
          run: git config --global url.git@gitea-ssh.engen.priv.no:.insteadOf https://gitea.engen.priv.no/
        - name: Install ko
          run: go install github.com/google/ko@latest
-       - name: Build
-         run: KO_DOCKER_REPO=gitea.engen.priv.no/unifi-network-operator-controller PATH=~/go/bin:$PATH ko build --local ./cmd 
-       - name: Build manifest
-         run: make build-installer
+      - name: Docker login
+        run: echo "${GITEA_TOKEN}" | docker login "${GITEA_REGISTRY}" --username "${GITEA_USER}" --password-stdin
+      - name: Build
+        run: |
+          export KO_DOCKER_REPO="${GITEA_REGISTRY}/${GITEA_ORG}/unifi-network-operator-controller"
+          ko publish ./cmd \
+          --tags "latest" \
+          --image-label 'org.opencontainers.image.authors=Klauvsteinen <vegard@engen.priv.no>' \
+          --image-label 'org.opencontainers.image.vendor=Klauvsteinen' \
+          --image-label 'org.opencontainers.image.source=https://gitea.engen.priv.no/klauvsteinen/unifi-network-operator' \
+          --image-label 'org.opencontainers.image.url=https://gitea.engen.priv.no/klauvsteinen/unifi-network-operator' \
+          --image-label 'dev.chainguard.package.main=' \
+          --bare
+      - name: Build manifest
+        run: |
+          make IMG="${GITEA_REGISTRY}/${GITEA_ORG}/unifi-network-operator-controller:latest" build-installer
+          curl -X DELETE \
+          -H "Authorization: token $GITEA_TOKEN" \
+          -H "Content-Type: application/x-yaml" \
+          https://gitea.engen.priv.no/api/packages/klauvsteinen/generic/unifi-network-operator/latest/install.yaml
+          curl -X PUT \
+          -H "Authorization: token $GITEA_TOKEN" \
+          -H "Content-Type: application/x-yaml" \
+          --data-binary @./dist/install.yaml \
+          https://gitea.engen.priv.no/api/packages/klauvsteinen/generic/unifi-network-operator/latest/install.yaml
