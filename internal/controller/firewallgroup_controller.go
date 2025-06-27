@@ -363,7 +363,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 	}
 	ipv4_name := "k8s-" + firewallGroup.Spec.Namespace + "/" + firewallGroup.Spec.Name + "-ipv4"
 	ipv6_name := "k8s-" + firewallGroup.Spec.Namespace + "/" + firewallGroup.Spec.Name + "-ipv6"
-	tcpports_name := "k8s-" firewallGroup.Spec.Namespace + "/" + firewallGroup.Spec.Name + "-tcpports"
+	tcpports_name := "k8s-" + firewallGroup.Spec.Namespace + "/" + firewallGroup.Spec.Name + "-tcpports"
 	udpports_name := "k8s-" + firewallGroup.Spec.Namespace + "/" + firewallGroup.Spec.Name + "-udpports"
 	ipv4_done := false
 	ipv6_done := false
