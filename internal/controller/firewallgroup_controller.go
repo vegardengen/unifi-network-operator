@@ -361,10 +361,10 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 		log.Error(err, "Could not list network objects")
 		return reconcile.Result{}, err
 	}
-	ipv4_name := "k8s-" + firewallGroup.Spec.Name + "-ipv4"
-	ipv6_name := "k8s-" + firewallGroup.Spec.Name + "-ipv6"
-	tcpports_name := "k8s-" + firewallGroup.Spec.Name + "-tcpports"
-	udpports_name := "k8s-" + firewallGroup.Spec.Name + "-udpports"
+	ipv4_name := "k8s-" + firewallGroup.Namespace + "/" + firewallGroup.Name + "-ipv4"
+	ipv6_name := "k8s-" + firewallGroup.Namespace + "/" + firewallGroup.Name + "-ipv6"
+	tcpports_name := "k8s-" + firewallGroup.Namespace + "/" + firewallGroup.Name + "-tcpports"
+	udpports_name := "k8s-" + firewallGroup.Namespace + "/" + firewallGroup.Name + "-udpports"
 	ipv4_done := false
 	ipv6_done := false
 	tcpports_done := false
