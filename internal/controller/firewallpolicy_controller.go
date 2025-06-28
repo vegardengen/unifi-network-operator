@@ -340,7 +340,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				skipService = true
 			}
 		}
-		if val, found := service.Annotations["unifi.engen.priv.no/firewall-policy"]; found && ((strings.Contains(val, "/") && val == firewallPolicy.Namespace+"/"+firewallPolicy.Name) || (val == firewallPolicy.Name && firewallPolicy.Namespace == defaultNs)) && !skipService {
+		if val, found := service.Annotations["unifi.engen.priv.no/firewall-policy"]; found && ((strings.Contains(val, "/") && val == firewallPolicy.Namespace+"/"+firewallPolicy.Name) || (val == firewallPolicy.Name && firewallPolicy.Namespace == service.Namespace)) && !skipService {
 			myServices = append(myServices, service)
 		} else if _, found := destination_services[service.Namespace+"/"+service.Name]; found && !skipService {
 			myServices = append(myServices, service)
