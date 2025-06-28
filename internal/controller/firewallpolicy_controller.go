@@ -310,7 +310,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Run through all firewall groups. Add them to the myFirewallGroups list if they either have an annotations or is specified in the resource.
 
 	for _, firewallGroup := range firewallGroupCRDs.Items {
-		if val, found := firewallGroup.Annotations["unifi.engen.priv.no/firewall-policy"]; found && ((strings.Contains(val, "/") && val == firewallPolicy.Namespace+"/"+firewallPolicy.Name) || (val == firewallPolicy.Name && firewallPolicy.Namespace == defaultNs)) {
+		if val, found := firewallGroup.Annotations["unifi.engen.priv.no/firewall-policy"]; found && ((strings.Contains(val, "/") && val == firewallPolicy.Namespace+"/"+firewallPolicy.Name) || (val == firewallPolicy.Name && firewallPolicy.Namespace == firewallGroup.Namespace)) {
 			myFirewallGroups = append(myFirewallGroups, firewallGroup)
 		} else if _, found := destination_groups[firewallGroup.Namespace+"/"+firewallGroup.Name]; found {
 			myFirewallGroups = append(myFirewallGroups, firewallGroup)
