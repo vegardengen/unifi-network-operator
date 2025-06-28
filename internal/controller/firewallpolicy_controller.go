@@ -294,7 +294,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		destination_groups[namespace+"/"+dest_group.Name] = struct{}{}
 	}
 	for _, dest_service := range firewallPolicy.Spec.Destination.Services {
-		namespace := defaultNs
+		namespace := firewallPolicy.Namespace
 		if len(dest_service.Namespace) > 0 {
 			namespace = dest_service.Namespace
 		}
