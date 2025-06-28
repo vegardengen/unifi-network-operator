@@ -125,70 +125,72 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			}
 			log.Info("Running finalizer logic for FirewallPolicy", "name", firewallPolicy.Name)
 
-			if len(firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies) > 0 {
-				for i, UnifiFirewallPolicy := range firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies {
-					log.Info(fmt.Sprintf("From: %s to: %s TcpIpv4: %s UdpIpv4: %s TcpIpv6: %s UdpIpv6: %s", UnifiFirewallPolicy.From, UnifiFirewallPolicy.To, UnifiFirewallPolicy.TcpIpv4ID, UnifiFirewallPolicy.UdpIpv4ID, UnifiFirewallPolicy.TcpIpv6ID, UnifiFirewallPolicy.UdpIpv6ID))
-					if len(UnifiFirewallPolicy.TcpIpv4ID) > 0 {
-						err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallPolicy.TcpIpv4ID)
-						if err != nil && !strings.Contains(err.Error(), "not found") {
-						} else {
-							firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies[i].TcpIpv4ID = ""
-							if err := r.Status().Update(ctx, &firewallPolicy); err != nil {
-								return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+			if len(firewallPolicy.Status) > 0 {
+				if len(firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies) > 0 {
+					for i, UnifiFirewallPolicy := range firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies {
+						log.Info(fmt.Sprintf("From: %s to: %s TcpIpv4: %s UdpIpv4: %s TcpIpv6: %s UdpIpv6: %s", UnifiFirewallPolicy.From, UnifiFirewallPolicy.To, UnifiFirewallPolicy.TcpIpv4ID, UnifiFirewallPolicy.UdpIpv4ID, UnifiFirewallPolicy.TcpIpv6ID, UnifiFirewallPolicy.UdpIpv6ID))
+						if len(UnifiFirewallPolicy.TcpIpv4ID) > 0 {
+							err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallPolicy.TcpIpv4ID)
+							if err != nil && !strings.Contains(err.Error(), "not found") {
+							} else {
+								firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies[i].TcpIpv4ID = ""
+								if err := r.Status().Update(ctx, &firewallPolicy); err != nil {
+									return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+								}
 							}
 						}
-					}
-					if len(UnifiFirewallPolicy.UdpIpv4ID) > 0 {
-						err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallPolicy.UdpIpv4ID)
-						if err != nil && !strings.Contains(err.Error(), "not found") {
-							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
-						} else {
-							firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies[i].UdpIpv4ID = ""
-							if err := r.Status().Update(ctx, &firewallPolicy); err != nil {
+						if len(UnifiFirewallPolicy.UdpIpv4ID) > 0 {
+							err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallPolicy.UdpIpv4ID)
+							if err != nil && !strings.Contains(err.Error(), "not found") {
 								return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+							} else {
+								firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies[i].UdpIpv4ID = ""
+								if err := r.Status().Update(ctx, &firewallPolicy); err != nil {
+									return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+								}
 							}
 						}
-					}
-					if len(UnifiFirewallPolicy.TcpIpv6ID) > 0 {
-						err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallPolicy.TcpIpv6ID)
-						if err != nil && !strings.Contains(err.Error(), "not found") {
-							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
-						} else {
-							firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies[i].TcpIpv6ID = ""
-							if err := r.Status().Update(ctx, &firewallPolicy); err != nil {
+						if len(UnifiFirewallPolicy.TcpIpv6ID) > 0 {
+							err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallPolicy.TcpIpv6ID)
+							if err != nil && !strings.Contains(err.Error(), "not found") {
 								return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+							} else {
+								firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies[i].TcpIpv6ID = ""
+								if err := r.Status().Update(ctx, &firewallPolicy); err != nil {
+									return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+								}
 							}
 						}
-					}
-					if len(UnifiFirewallPolicy.UdpIpv6ID) > 0 {
-						err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallPolicy.UdpIpv6ID)
-						if err != nil && !strings.Contains(err.Error(), "not found") {
-							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
-						} else {
-							firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies[i].UdpIpv6ID = ""
-							if err := r.Status().Update(ctx, &firewallPolicy); err != nil {
+						if len(UnifiFirewallPolicy.UdpIpv6ID) > 0 {
+							err := r.UnifiClient.Client.DeleteFirewallPolicy(context.Background(), r.UnifiClient.SiteID, UnifiFirewallPolicy.UdpIpv6ID)
+							if err != nil && !strings.Contains(err.Error(), "not found") {
 								return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+							} else {
+								firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies[i].UdpIpv6ID = ""
+								if err := r.Status().Update(ctx, &firewallPolicy); err != nil {
+									return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+								}
 							}
 						}
 					}
 				}
-			}
 
-			if len(firewallPolicy.Status.ResourcesManaged.FirewallGroups) > 0 {
-				for i, firewallGroup := range firewallPolicy.Status.ResourcesManaged.FirewallGroups {
-					var firewallGroupCRD unifiv1beta1.FirewallGroup
-					if firewallGroup.Name != "" {
-						if err := r.Get(ctx, types.NamespacedName{Name: firewallGroup.Name, Namespace: firewallGroup.Namespace}, &firewallGroupCRD); err != nil {
-							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
-						}
-						if err := r.Delete(ctx, &firewallGroupCRD); err != nil {
-							log.Error(err, "Could not delete firewall group")
-							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
-						}
-						firewallPolicy.Status.ResourcesManaged.FirewallGroups[i].Name = ""
-						firewallPolicy.Status.ResourcesManaged.FirewallGroups[i].Namespace = ""
-						if err := r.Status().Update(ctx, &firewallPolicy); err != nil {
-							return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+				if len(firewallPolicy.Status.ResourcesManaged.FirewallGroups) > 0 {
+					for i, firewallGroup := range firewallPolicy.Status.ResourcesManaged.FirewallGroups {
+						var firewallGroupCRD unifiv1beta1.FirewallGroup
+						if firewallGroup.Name != "" {
+							if err := r.Get(ctx, types.NamespacedName{Name: firewallGroup.Name, Namespace: firewallGroup.Namespace}, &firewallGroupCRD); err != nil {
+								return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+							}
+							if err := r.Delete(ctx, &firewallGroupCRD); err != nil {
+								log.Error(err, "Could not delete firewall group")
+								return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+							}
+							firewallPolicy.Status.ResourcesManaged.FirewallGroups[i].Name = ""
+							firewallPolicy.Status.ResourcesManaged.FirewallGroups[i].Namespace = ""
+							if err := r.Status().Update(ctx, &firewallPolicy); err != nil {
+								return ctrl.Result{RequeueAfter: 10 * time.Minute}, err
+							}
 						}
 					}
 				}
