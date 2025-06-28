@@ -285,7 +285,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// This will be used when running through all firewall groups and servics known, to see if a rule should be added.
 
 	for _, dest_group := range firewallPolicy.Spec.Destination.FirewallGroups {
-		namespace := defaultNs
+		namespace := firewallPolicy.Namespace
 		if len(dest_group.Namespace) > 0 {
 			namespace = dest_group.Namespace
 		}
