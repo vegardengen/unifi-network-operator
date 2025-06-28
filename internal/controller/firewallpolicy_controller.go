@@ -125,7 +125,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			}
 			log.Info("Running finalizer logic for FirewallPolicy", "name", firewallPolicy.Name)
 
-			if len(firewallPolicy.Status) > 0 {
+			if firewallPolicy.Status != nil {
 				if len(firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies) > 0 {
 					for i, UnifiFirewallPolicy := range firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies {
 						log.Info(fmt.Sprintf("From: %s to: %s TcpIpv4: %s UdpIpv4: %s TcpIpv6: %s UdpIpv6: %s", UnifiFirewallPolicy.From, UnifiFirewallPolicy.To, UnifiFirewallPolicy.TcpIpv4ID, UnifiFirewallPolicy.UdpIpv4ID, UnifiFirewallPolicy.TcpIpv6ID, UnifiFirewallPolicy.UdpIpv6ID))
