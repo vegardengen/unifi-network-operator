@@ -377,7 +377,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
-					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg,"invalid character") {
+					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg, "invalid character") {
 						log.Info("Firewall group is in use. Invoking workaround...!")
 						firewall_group.GroupMembers = []string{"127.0.0.1"}
 						firewall_group.Name = firewall_group.Name + "-deleted"
@@ -417,7 +417,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
-					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg,"invalid character") {
+					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg, "invalid character") {
 						log.Info("Firewall group is in use. Invoking workaround...!")
 						firewall_group.GroupMembers = []string{"::1"}
 						firewall_group.Name = firewall_group.Name + "-deleted"
@@ -457,7 +457,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
-					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg,"invalid character") {
+					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg, "invalid character") {
 						log.Info("Firewall group is in use. Invoking workaround...!")
 						firewall_group.GroupMembers = []string{"0"}
 						firewall_group.Name = firewall_group.Name + "-deleted"
@@ -497,7 +497,7 @@ func (r *FirewallGroupReconciler) Reconcile(ctx context.Context, req reconcile.R
 				if err != nil {
 					msg := strings.ToLower(err.Error())
 					log.Info(msg)
-					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg,"invalid character") {
+					if strings.Contains(msg, "api.err.objectreferredby") || strings.Contains(msg, "invalid character") {
 						log.Info("Firewall group is in use. Invoking workaround...!")
 						firewall_group.GroupMembers = []string{"127.0.0.1"}
 						firewall_group.Name = firewall_group.Name + "-deleted"
