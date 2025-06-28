@@ -125,6 +125,7 @@ func (r *FirewallPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			}
 			log.Info("Running finalizer logic for FirewallPolicy", "name", firewallPolicy.Name)
 
+			log.Info(fmt.Sprintf("Deleting %+v", firewallPolicy))
 			if firewallPolicy.Status != nil {
 				if len(firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies) > 0 {
 					for i, UnifiFirewallPolicy := range firewallPolicy.Status.ResourcesManaged.UnifiFirewallPolicies {
