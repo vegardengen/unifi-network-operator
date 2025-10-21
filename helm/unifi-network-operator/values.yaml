@@ -1,0 +1,159 @@
+# Default values for unifi-network-operator
+
+# -- Number of replicas for the operator deployment
+replicaCount: 1
+
+image:
+  # -- Container image repository
+  repository: gitea.engen.priv.no/klauvsteinen/unifi-network-operator-controller
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag whose default is the chart appVersion
+  tag: "latest"
+
+# -- Image pull secrets for private registries
+imagePullSecrets: []
+
+# -- Override the name of the chart
+nameOverride: ""
+# -- Override the full name of the chart
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  create: true
+  # -- Automatically mount a ServiceAccount's API credentials
+  automount: true
+  # -- Annotations to add to the service account
+  annotations: {}
+  # -- The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# -- Annotations to add to the pod
+podAnnotations:
+  kubectl.kubernetes.io/default-container: manager
+
+# -- Labels to add to the pod
+podLabels:
+  control-plane: controller-manager
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+
+service:
+  # -- Enable metrics service
+  enabled: true
+  # -- Service type
+  type: ClusterIP
+  # -- Metrics port
+  port: 8443
+  # -- Annotations to add to the service
+  annotations: {}
+
+resources:
+  limits:
+    # -- CPU limit
+    cpu: 500m
+    # -- Memory limit
+    memory: 128Mi
+  requests:
+    # -- CPU request
+    cpu: 10m
+    # -- Memory request
+    memory: 64Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8081
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 8081
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+# -- Node selector for pod assignment
+nodeSelector: {}
+
+# -- Tolerations for pod assignment
+tolerations: []
+
+# -- Affinity for pod assignment
+affinity: {}
+
+# Leader election configuration
+leaderElection:
+  # -- Enable leader election for high availability
+  enabled: true
+
+# UniFi controller configuration
+unifi:
+  # -- UniFi controller URL (e.g., https://unifi.example.com:8443)
+  url: ""
+  # -- UniFi site ID (e.g., default)
+  site: "default"
+  # -- UniFi username
+  username: "admin"
+  # -- UniFi password (leave empty to use existing secret)
+  password: ""
+  # -- Use existing secret for UniFi credentials
+  # If set, the chart will not create a secret
+  existingSecret: ""
+  # -- Keys in the existing secret for UniFi credentials
+  existingSecretKeys:
+    url: UNIFI_URL
+    site: UNIFI_SITE
+    username: UNIFI_USERNAME
+    password: UNIFI_PASSWORD
+
+# Operator configuration
+config:
+  # -- Create a ConfigMap for operator configuration
+  create: true
+  # -- Default namespace for resources
+  defaultNamespace: "default"
+  # -- Full sync zone name (zone for bidirectional sync)
+  fullSyncZone: ""
+  # -- Full sync network name (network for bidirectional sync)
+  fullSyncNetwork: ""
+  # -- Kubernetes UniFi zone name
+  kubernetesUnifiZone: ""
+  # -- Use existing ConfigMap for operator configuration
+  existingConfigMap: ""
+
+# CRD configuration
+crds:
+  # -- Install CRDs as part of the Helm chart
+  install: true
+  # -- Keep CRDs on chart uninstall
+  keep: true
+
+# RBAC configuration
+rbac:
+  # -- Create RBAC resources
+  create: true
+
+# Metrics configuration
+metrics:
+  # -- Enable Prometheus ServiceMonitor
+  serviceMonitor:
+    enabled: false
+    # -- Additional labels for the ServiceMonitor
+    additionalLabels: {}
+    # -- Scrape interval
+    interval: 30s
+    # -- Scrape timeout
+    scrapeTimeout: 10s

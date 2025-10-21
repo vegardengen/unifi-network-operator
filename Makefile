@@ -229,3 +229,57 @@ mv $(1) $(1)-$(3) ;\
 } ;\
 ln -sf $(1)-$(3) $(1)
 endef
+
+##@ Helm
+
+HELM_CHART_DIR ?= helm/unifi-network-operator
+HELM_RELEASE_NAME ?= unifi-network-operator
+HELM_NAMESPACE ?= unifi-network-operator-system
+
+.PHONY: helm-lint
+helm-lint: ## Lint the Helm chart
+	helm lint $(HELM_CHART_DIR) --set unifi.url="https://test.local" --set unifi.password="test"
+
+.PHONY: helm-template
+helm-template: ## Render Helm templates for inspection
+	helm template $(HELM_RELEASE_NAME) $(HELM_CHART_DIR) \
+		--namespace $(HELM_NAMESPACE) \
+		--set unifi.url="https://test.local" \
+		--set unifi.password="test" \
+		--debug
+
+.PHONY: helm-install
+helm-install: ## Install the Helm chart (requires UNIFI_URL and UNIFI_PASSWORD env vars)
+	@if [ -z "$(UNIFI_URL)" ]; then echo "Error: UNIFI_URL is not set"; exit 1; fi
+	@if [ -z "$(UNIFI_PASSWORD)" ]; then echo "Error: UNIFI_PASSWORD is not set"; exit 1; fi
+	helm install $(HELM_RELEASE_NAME) $(HELM_CHART_DIR) \
+		--namespace $(HELM_NAMESPACE) \
+		--create-namespace \
+		--set unifi.url="$(UNIFI_URL)" \
+		--set unifi.password="$(UNIFI_PASSWORD)" \
+		--set unifi.site="$(UNIFI_SITE)" \
+		--set unifi.username="$(UNIFI_USERNAME)"
+
+.PHONY: helm-upgrade
+helm-upgrade: ## Upgrade the Helm release
+	helm upgrade $(HELM_RELEASE_NAME) $(HELM_CHART_DIR) \
+		--namespace $(HELM_NAMESPACE)
+
+.PHONY: helm-uninstall
+helm-uninstall: ## Uninstall the Helm release
+	helm uninstall $(HELM_RELEASE_NAME) --namespace $(HELM_NAMESPACE)
+
+.PHONY: helm-package
+helm-package: ## Package the Helm chart
+	helm package $(HELM_CHART_DIR) -d dist/
+
+.PHONY: helm-dry-run
+helm-dry-run: ## Dry run Helm installation
+	@if [ -z "$(UNIFI_URL)" ]; then echo "Error: UNIFI_URL is not set"; exit 1; fi
+	@if [ -z "$(UNIFI_PASSWORD)" ]; then echo "Error: UNIFI_PASSWORD is not set"; exit 1; fi
+	helm install $(HELM_RELEASE_NAME) $(HELM_CHART_DIR) \
+		--namespace $(HELM_NAMESPACE) \
+		--create-namespace \
+		--set unifi.url="$(UNIFI_URL)" \
+		--set unifi.password="$(UNIFI_PASSWORD)" \
+		--dry-run --debug

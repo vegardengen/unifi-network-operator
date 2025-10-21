@@ -1,0 +1,16 @@
+apiVersion: v2
+name: unifi-network-operator
+description: A Kubernetes operator for managing UniFi network configurations
+type: application
+version: 0.1.0
+appVersion: "latest"
+home: https://github.com/yourusername/unifi-network-operator
+maintainers:
+  - name: Vegar Dengen
+keywords:
+  - unifi
+  - network
+  - operator
+  - firewall
+sources:
+  - https://github.com/yourusername/unifi-network-operator

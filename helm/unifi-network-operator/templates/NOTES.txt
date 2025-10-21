@@ -1,0 +1,49 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+The UniFi Network Operator has been deployed to namespace: {{ .Release.Namespace }}
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }} -n {{ .Release.Namespace }}
+  $ helm get all {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+{{- if not .Values.unifi.existingSecret }}
+
+IMPORTANT: Make sure to configure your UniFi controller credentials properly.
+The operator requires the following environment variables to be set:
+  - UNIFI_URL: {{ .Values.unifi.url }}
+  - UNIFI_SITE: {{ .Values.unifi.site }}
+  - UNIFI_USER: {{ .Values.unifi.username }}
+  - UNIFI_PASSWORD: [CONFIGURED]
+{{- end }}
+
+{{- if .Values.config.create }}
+
+Operator configuration has been created with:
+{{- if .Values.config.defaultNamespace }}
+  - Default Namespace: {{ .Values.config.defaultNamespace }}
+{{- end }}
+{{- if .Values.config.fullSyncZone }}
+  - Full Sync Zone: {{ .Values.config.fullSyncZone }}
+{{- end }}
+{{- if .Values.config.fullSyncNetwork }}
+  - Full Sync Network: {{ .Values.config.fullSyncNetwork }}
+{{- end }}
+{{- if .Values.config.kubernetesUnifiZone }}
+  - Kubernetes UniFi Zone: {{ .Values.config.kubernetesUnifiZone }}
+{{- end }}
+{{- end }}
+
+To get the operator logs:
+  $ kubectl logs -n {{ .Release.Namespace }} -l {{ include "unifi-network-operator.selectorLabels" . | replace "\n" "," }} -f
+
+Next steps:
+  1. Create FirewallZone resources to manage UniFi firewall zones
+  2. Create FirewallGroup resources to group IP addresses and ports
+  3. Create FirewallPolicy resources to define firewall rules
+  4. Create Networkconfiguration resources to manage network settings
+  5. Annotate Services for port forwarding
+
+For more information, visit: {{ .Chart.Home }}

@@ -1,0 +1,22 @@
+{{- if .Values.config.create -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "unifi-network-operator.configMapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "unifi-network-operator.labels" . | nindent 4 }}
+data:
+  {{- if .Values.config.defaultNamespace }}
+  defaultNamespace: {{ .Values.config.defaultNamespace | quote }}
+  {{- end }}
+  {{- if .Values.config.fullSyncZone }}
+  fullSyncZone: {{ .Values.config.fullSyncZone | quote }}
+  {{- end }}
+  {{- if .Values.config.fullSyncNetwork }}
+  fullSyncNetwork: {{ .Values.config.fullSyncNetwork | quote }}
+  {{- end }}
+  {{- if .Values.config.kubernetesUnifiZone }}
+  kubernetesUnifiZone: {{ .Values.config.kubernetesUnifiZone | quote }}
+  {{- end }}
+{{- end }}
