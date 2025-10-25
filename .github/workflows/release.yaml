@@ -31,9 +31,13 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
+          cache: true
+
+      - name: Install envtest binaries
+        run: make setup-envtest
 
       - name: Run tests
-        run: go test -v ./...
+        run: make test
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
