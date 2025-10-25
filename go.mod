@@ -1,17 +1,17 @@
-module gitea.engen.priv.no/klauvsteinen/unifi-network-operator
+module github.com/vegardengen/unifi-network-operator
 
 go 1.24.0
 
 toolchain go1.24.1
 
-
 require (
+	gitea.engen.priv.no/klauvsteinen/go-unifi v0.0.1-alpha26
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
-	gitea.engen.priv.no/klauvsteinen/go-unifi v0.0.1-alpha26
 	k8s.io/api v0.32.1
 	k8s.io/apimachinery v0.32.1
 	k8s.io/client-go v0.32.1
+	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e
 	sigs.k8s.io/controller-runtime v0.20.4
 )
 
@@ -97,7 +97,6 @@ require (
 	k8s.io/component-base v0.32.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
-	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.32.0 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect

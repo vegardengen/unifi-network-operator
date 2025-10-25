@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	unifiv1beta1 "gitea.engen.priv.no/klauvsteinen/unifi-network-operator/api/v1beta1"
+	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
 )
 
 var _ = Describe("Networkconfiguration Controller", func() {

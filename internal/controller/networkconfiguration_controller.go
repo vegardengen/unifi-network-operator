@@ -28,9 +28,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	unifiv1 "gitea.engen.priv.no/klauvsteinen/unifi-network-operator/api/v1beta1"
-	"gitea.engen.priv.no/klauvsteinen/unifi-network-operator/internal/config"
-	"gitea.engen.priv.no/klauvsteinen/unifi-network-operator/internal/unifi"
+	unifiv1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
+	"github.com/vegardengen/unifi-network-operator/internal/config"
+	"github.com/vegardengen/unifi-network-operator/internal/unifi"
 )
 
 // NetworkconfigurationReconciler reconciles a Networkconfiguration object

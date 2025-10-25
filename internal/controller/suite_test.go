@@ -32,7 +32,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	unifiv1beta1 "gitea.engen.priv.no/klauvsteinen/unifi-network-operator/api/v1beta1"
+	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
 	// +kubebuilder:scaffold:imports
 )
 

@@ -39,10 +39,10 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	unifiv1beta1 "gitea.engen.priv.no/klauvsteinen/unifi-network-operator/api/v1beta1"
-	"gitea.engen.priv.no/klauvsteinen/unifi-network-operator/internal/config"
-	"gitea.engen.priv.no/klauvsteinen/unifi-network-operator/internal/controller"
-	"gitea.engen.priv.no/klauvsteinen/unifi-network-operator/internal/unifi"
+	unifiv1beta1 "github.com/vegardengen/unifi-network-operator/api/v1beta1"
+	"github.com/vegardengen/unifi-network-operator/internal/config"
+	"github.com/vegardengen/unifi-network-operator/internal/controller"
+	"github.com/vegardengen/unifi-network-operator/internal/unifi"
 	// +kubebuilder:scaffold:imports
 )
 
