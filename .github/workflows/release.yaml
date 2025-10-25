@@ -1,0 +1,222 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+  pages: write
+  id-token: write
+
+jobs:
+  # Build and push multi-arch Docker images
+  build-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "version_no_v=${VERSION#v}" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version_no_v }}
+            ghcr.io/${{ github.repository }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.event.repository.html_url }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Package and release Helm chart
+  release-chart:
+    needs: build-images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          VERSION_NO_V="${VERSION#v}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "version_no_v=${VERSION_NO_V}" >> $GITHUB_OUTPUT
+
+      - name: Update Chart.yaml version and appVersion
+        run: |
+          sed -i "s/^version:.*/version: ${{ steps.version.outputs.version_no_v }}/" helm/unifi-network-operator/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${{ steps.version.outputs.version }}\"/" helm/unifi-network-operator/Chart.yaml
+
+      - name: Update values.yaml image tag
+        run: |
+          sed -i "s/tag: \".*\"/tag: \"${{ steps.version.outputs.version }}\"/" helm/unifi-network-operator/values.yaml
+          sed -i "s|repository: .*|repository: ghcr.io/${{ github.repository }}|" helm/unifi-network-operator/values.yaml
+
+      - name: Package Helm chart
+        run: |
+          mkdir -p .cr-release-packages
+          helm package helm/unifi-network-operator -d .cr-release-packages
+
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.6.0
+        with:
+          charts_dir: helm
+          skip_packaging: true
+          config: .github/cr.yaml
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Upload Helm chart as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-chart
+          path: .cr-release-packages/*.tgz
+          retention-days: 90
+
+  # Create GitHub Release
+  create-release:
+    needs: [build-images, release-chart]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Download Helm chart artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: helm-chart
+          path: ./artifacts
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          ## UniFi Network Operator ${{ steps.version.outputs.version }}
+
+          ### Installation
+
+          #### Using Helm
+
+          ```bash
+          helm repo add unifi-network-operator https://vegardengen.github.io/unifi-network-operator
+          helm repo update
+          helm install unifi-network-operator unifi-network-operator/unifi-network-operator \
+            --namespace unifi-network-operator-system \
+            --create-namespace \
+            --set unifi.url="https://your-unifi-controller:8443" \
+            --set unifi.password="your-password"
+          ```
+
+          #### Using Docker
+
+          ```bash
+          docker pull ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+          ```
+
+          ### What's Changed
+
+          See the full changelog for details of changes in this release.
+
+          ### Container Images
+
+          - `ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}`
+          - Available for `linux/amd64` and `linux/arm64`
+
+          ### Helm Chart
+
+          - Chart version: Automatically generated
+          - App version: ${{ steps.version.outputs.version }}
+          - Repository: https://vegardengen.github.io/unifi-network-operator
+          EOF
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
+          files: |
+            ./artifacts/*.tgz
+          token: ${{ secrets.GITHUB_TOKEN }}

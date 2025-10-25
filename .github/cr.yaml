@@ -1,0 +1,6 @@
+# Chart Releaser configuration
+owner: vegardengen
+git-repo: unifi-network-operator
+charts-repo-url: https://vegardengen.github.io/unifi-network-operator
+# Skip packaging if the chart version already exists
+skip-existing: true
