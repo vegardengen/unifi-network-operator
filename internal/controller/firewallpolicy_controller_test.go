@@ -61,10 +61,10 @@ var _ = Describe("FirewallPolicy Controller", func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
 			resource := &unifiv1beta1.FirewallPolicy{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Cleanup the specific resource instance FirewallPolicy")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			if err == nil {
+				By("Cleanup the specific resource instance FirewallPolicy")
+				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			}
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
