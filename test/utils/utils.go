@@ -165,6 +165,69 @@ func IsCertManagerCRDsInstalled() bool {
 	return false
 }
 
+// EnsureKindContext ensures that kubectl is pointing to a Kind cluster
+// and switches to it if KIND_CLUSTER env var is set. This is a safety check
+// to prevent accidentally running tests against production clusters.
+func EnsureKindContext() error {
+	cluster := "kind"
+	if v, ok := os.LookupEnv("KIND_CLUSTER"); ok {
+		cluster = v
+	}
+
+	// Get current kubectl context
+	cmd := exec.Command("kubectl", "config", "current-context")
+	currentContext, err := Run(cmd)
+	if err != nil {
+		return fmt.Errorf("failed to get current kubectl context: %w", err)
+	}
+	currentContext = strings.TrimSpace(currentContext)
+
+	// Build expected Kind context name
+	expectedContext := fmt.Sprintf("kind-%s", cluster)
+
+	// Safety check: verify current context is a Kind cluster
+	if !strings.HasPrefix(currentContext, "kind-") {
+		return fmt.Errorf("SAFETY CHECK FAILED: Current kubectl context '%s' is not a Kind cluster. "+
+			"E2E tests can only run against Kind clusters to prevent accidental damage to production clusters. "+
+			"Expected context to start with 'kind-', got '%s'", currentContext, currentContext)
+	}
+
+	// Switch to the correct Kind context if needed
+	if currentContext != expectedContext {
+		_, _ = fmt.Fprintf(GinkgoWriter, "Switching kubectl context from '%s' to '%s'\n", currentContext, expectedContext)
+		cmd = exec.Command("kubectl", "config", "use-context", expectedContext)
+		if _, err := Run(cmd); err != nil {
+			return fmt.Errorf("failed to switch to Kind context '%s': %w (current: %s)", expectedContext, err, currentContext)
+		}
+	}
+
+	_, _ = fmt.Fprintf(GinkgoWriter, "✓ kubectl context verified: %s (Kind cluster)\n", expectedContext)
+	return nil
+}
+
+// IsKindClusterRunning checks if a Kind cluster is running
+func IsKindClusterRunning() (bool, error) {
+	cluster := "kind"
+	if v, ok := os.LookupEnv("KIND_CLUSTER"); ok {
+		cluster = v
+	}
+
+	cmd := exec.Command("kind", "get", "clusters")
+	output, err := Run(cmd)
+	if err != nil {
+		return false, fmt.Errorf("failed to get Kind clusters: %w", err)
+	}
+
+	clusters := GetNonEmptyLines(output)
+	for _, c := range clusters {
+		if strings.TrimSpace(c) == cluster {
+			return true, nil
+		}
+	}
+
+	return false, fmt.Errorf("Kind cluster '%s' not found. Available clusters: %v", cluster, clusters)
+}
+
 // LoadImageToKindClusterWithName loads a local docker image to the kind cluster
 func LoadImageToKindClusterWithName(name string) error {
 	cluster := "kind"

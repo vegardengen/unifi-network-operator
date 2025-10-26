@@ -53,9 +53,19 @@ func TestE2E(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	By("verifying Kind cluster is running")
+	running, err := utils.IsKindClusterRunning()
+	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to check if Kind cluster is running")
+	ExpectWithOffset(1, running).To(BeTrue(), "Kind cluster must be running before tests can execute")
+
+	By("ensuring kubectl context is pointing to Kind cluster (safety check)")
+	err = utils.EnsureKindContext()
+	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to verify kubectl context is pointing to Kind cluster. "+
+		"This safety check prevents accidentally running tests against production clusters.")
+
 	By("building the manager(Operator) image")
 	cmd := exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectImage))
-	_, err := utils.Run(cmd)
+	_, err = utils.Run(cmd)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to build the manager(Operator) image")
 
 	// TODO(user): If you want to change the e2e test vendor from Kind, ensure the image is

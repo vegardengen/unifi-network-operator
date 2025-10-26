@@ -69,14 +69,40 @@ test: manifests generate fmt vet setup-envtest ## Run tests.
 # - CERT_MANAGER_INSTALL_SKIP=true
 .PHONY: test-e2e
 test-e2e: manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
+	@echo "Running e2e tests with safety checks..."
 	@command -v kind >/dev/null 2>&1 || { \
-		echo "Kind is not installed. Please install Kind manually."; \
+		echo "ERROR: Kind is not installed. Please install Kind manually."; \
 		exit 1; \
 	}
 	@kind get clusters | grep -q 'kind' || { \
-		echo "No Kind cluster is running. Please start a Kind cluster before running the e2e tests."; \
+		echo "ERROR: No Kind cluster is running. Please start a Kind cluster before running the e2e tests."; \
 		exit 1; \
 	}
+	@echo "Checking kubectl context (safety check)..."
+	@CURRENT_CONTEXT=$$(kubectl config current-context 2>/dev/null || echo "none"); \
+	if ! echo "$$CURRENT_CONTEXT" | grep -q "^kind-"; then \
+		echo ""; \
+		echo "╔════════════════════════════════════════════════════════════════╗"; \
+		echo "║              SAFETY CHECK FAILED                               ║"; \
+		echo "╠════════════════════════════════════════════════════════════════╣"; \
+		echo "║ Current kubectl context: $$CURRENT_CONTEXT"; \
+		echo "║"; \
+		echo "║ E2E tests can ONLY run against Kind clusters to prevent       ║"; \
+		echo "║ accidental damage to production or development clusters.      ║"; \
+		echo "║"; \
+		echo "║ Your current kubectl context does not appear to be a Kind     ║"; \
+		echo "║ cluster (expected context name to start with 'kind-').        ║"; \
+		echo "║"; \
+		echo "║ To fix this:                                                   ║"; \
+		echo "║   1. List available contexts: kubectl config get-contexts     ║"; \
+		echo "║   2. Switch to Kind context: kubectl config use-context kind-kind ║"; \
+		echo "║      (replace 'kind-kind' with your actual Kind context name) ║"; \
+		echo "╚════════════════════════════════════════════════════════════════╝"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "✓ kubectl context verified: $$(kubectl config current-context)"
+	@echo "✓ Running tests against Kind cluster"
 	go test ./test/e2e/ -v -ginkgo.v
 
 .PHONY: lint
