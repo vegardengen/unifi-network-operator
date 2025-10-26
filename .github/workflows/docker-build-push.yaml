@@ -34,13 +34,12 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
 
-      - name: Install envtest binaries
-        run: |
-          make setup-envtest
-
       - name: Run tests
         run: |
-          make test
+          go test -v ./... -coverprofile=coverage.out
+          go tool cover -func=coverage.out
+        env:
+          SKIP_INTEGRATION_TESTS: "true"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

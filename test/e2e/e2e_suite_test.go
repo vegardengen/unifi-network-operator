@@ -47,6 +47,10 @@ var (
 // The default setup requires Kind, builds/loads the Manager Docker image locally, and installs
 // CertManager.
 func TestE2E(t *testing.T) {
+	if os.Getenv("SKIP_INTEGRATION_TESTS") == "true" {
+		t.Skip("Skipping e2e tests that require Kubernetes cluster")
+	}
+
 	RegisterFailHandler(Fail)
 	_, _ = fmt.Fprintf(GinkgoWriter, "Starting unifi-network-operator integration test suite\n")
 	RunSpecs(t, "e2e suite")

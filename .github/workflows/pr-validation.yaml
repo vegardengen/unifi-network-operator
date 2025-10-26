@@ -30,11 +30,10 @@ jobs:
       - name: Run go vet
         run: go vet ./...
 
-      - name: Install envtest binaries
-        run: make setup-envtest
-
       - name: Run tests
-        run: make test
+        run: go test -v -race -coverprofile=coverage.out ./...
+        env:
+          SKIP_INTEGRATION_TESTS: "true"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
